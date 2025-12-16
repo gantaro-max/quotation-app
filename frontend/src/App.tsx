@@ -34,6 +34,7 @@ interface Quotation {
   date: string;
   rows: Row[];
   discount: number;
+  remarks: string;
   attachedFileName?: string;
 }
 
@@ -70,19 +71,21 @@ const SAVED_QUOTATIONS: Quotation[] = [
     id: 1001, estimateNo: '231215001', version: 1, branchId: 1, staffId: 1, customerId: 1,
     customerName: '医療法人社団 うすい会', projectName: '本館 空調設備更新工事',
     date: '2023年12月15日', discount: 5000, attachedFileName: '見積依頼書.pdf',
-    rows: Array.from({ length: 20 }, (_, i) => ({ id: i + 1, type: 'normal', code: '', manufacturer: '', item: i === 0 ? '空調機A' : '', quantity: i === 0 ? 1 : 0, cost: 0, price: 100000 }))
+    remarks: '工期：ご発注後約2週間\n支払条件：検収後翌月末振込',
+    rows: Array.from({ length: 35 }, (_, i) => ({ id: i + 1, type: 'normal', code: '', manufacturer: '', item: i === 0 ? '空調機A' : '', quantity: i === 0 ? 1 : 0, cost: 0, price: 100000 }))
   },
   {
     id: 1002, estimateNo: '231216002', version: 1, branchId: 1, staffId: 1, customerId: 1,
     customerName: '医療法人社団 うすい会', projectName: 'MRI室 新設工事',
     date: '2023年12月16日', discount: 0,
+    remarks: '有効期限：発行より1ヶ月',
     rows: Array.from({ length: 20 }, (_, i) => ({ id: i + 1, type: 'normal', code: '', manufacturer: '', item: '', quantity: 0, cost: 0, price: 0 }))
   },
 ];
 
-// --- 設定 ---
-const ROWS_FIRST_PAGE = 20; 
-const ROWS_OTHER_PAGES = 30;
+// --- 設定 (行数を増やして1ページの密度を上げる) ---
+const ROWS_FIRST_PAGE = 32;  // 変更: 30 -> 32
+const ROWS_OTHER_PAGES = 40; // 変更: 36 -> 40
 
 // --- ユーティリティ ---
 const toHalfWidth = (str: string) => {
@@ -135,6 +138,20 @@ const styles: { [key: string]: React.CSSProperties } = {
   gridTh: { backgroundColor: '#34495e', color: 'white', padding: '10px 5px', border: '1px solid #2c3e50', textAlign: 'center', whiteSpace: 'nowrap', position: 'sticky', top: 0, zIndex: 100, boxShadow: '0 2px 2px rgba(0,0,0,0.1)' },
   gridTd: { border: '1px solid #dee2e6', padding: '0', verticalAlign: 'middle', backgroundColor: 'white' },
 
+  remarksInputArea: { padding: '10px', backgroundColor: '#fcfcfc', borderTop: '1px solid #ddd' },
+  remarksInput: { 
+    width: '100%', 
+    minHeight: '60px', 
+    padding: '8px', 
+    boxSizing: 'border-box', 
+    border: '1px solid #ccc', 
+    borderRadius: '4px', 
+    fontSize: '0.9em', 
+    resize: 'none', 
+    fontFamily: 'inherit',
+    overflow: 'hidden'
+  },
+
   leftFooter: { padding: '15px 20px', backgroundColor: '#2c3e50', color: 'white', borderTop: '1px solid #ccc', borderBottomLeftRadius: '4px', borderBottomRightRadius: '4px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
   calcContainer: { display: 'flex', alignItems: 'center', gap: '20px', backgroundColor: 'rgba(0,0,0,0.2)', padding: '5px 15px', borderRadius: '4px' },
   calcItem: { display: 'flex', alignItems: 'center', gap: '10px' },
@@ -169,9 +186,28 @@ const styles: { [key: string]: React.CSSProperties } = {
   table: { width: '100%', borderCollapse: 'collapse', marginTop: '5px', marginBottom: '5px', fontSize: '0.9em', tableLayout: 'fixed' },
   th: { border: '1px solid #000', padding: '2px', backgroundColor: '#f0f0f0', textAlign: 'center', fontWeight: 'bold', height: '22px', fontSize: '0.9em' },
   td: { border: '1px solid #000', padding: '0 4px', height: '22px', verticalAlign: 'middle' },
-  footerArea: { marginTop: 'auto', breakInside: 'avoid' },
+  
+  footerArea: { 
+    marginTop: 'auto', 
+    width: '100%',
+    breakInside: 'avoid',        
+    pageBreakInside: 'avoid',    
+    display: 'block'             
+  },
   footerTable: { width: '50%', marginLeft: 'auto', borderCollapse: 'collapse', marginBottom: '5px' },
-  remarksBox: { border: '1px solid #000', padding: '5px', height: '120px', marginTop: '2px', width: '100%', whiteSpace: 'pre-wrap', fontSize: '0.9em', lineHeight: '1.2' },
+  
+  remarksBox: { 
+    border: '1px solid #000', 
+    padding: '5px', 
+    minHeight: '120px', 
+    height: 'auto',     
+    marginTop: '2px', 
+    width: '100%', 
+    whiteSpace: 'pre-wrap', 
+    fontSize: '0.8em', 
+    lineHeight: '1.2',
+    wordBreak: 'break-all'
+  },
   
   copyBtn: { fontSize: '0.8em', padding: '2px 8px', backgroundColor: '#95a5a6', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', marginLeft: '10px' }
 };
@@ -237,6 +273,7 @@ interface EditScreenProps {
     projectName: string;
     customerName: string;
     discount: number | string;
+    remarks: string;
     rows: Row[];
     attachedFile: File | null;
     currentQuotationId: number | null;
@@ -247,6 +284,7 @@ interface EditScreenProps {
     setProjectName: (val: string) => void;
     setCustomerName: (val: string) => void;
     setDiscount: (val: number | string) => void;
+    setRemarks: (val: string) => void;
     setRows: (val: Row[]) => void;
     setAttachedFile: (val: File | null) => void;
   };
@@ -269,15 +307,16 @@ function MainApp({ currentUser, onLogout }: { currentUser: User, onLogout: () =>
   const [projectName, setProjectName] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [discount, setDiscount] = useState<number | string>(''); 
+  const [remarks, setRemarks] = useState('');
   const [rows, setRows] = useState<Row[]>([]);
   const [attachedFile, setAttachedFile] = useState<File | null>(null);
 
-  // ★修正1: resetForm を useEffect より先に定義
   const resetForm = () => {
     setRows(Array.from({ length: 20 }, (_, i) => ({ id: i + 1, type: 'normal', code: '', manufacturer: '', item: '', quantity: 0, cost: 0, price: 0 })));
     setProjectName('');
     setCustomerName('');
     setDiscount('');
+    setRemarks('');
     setAttachedFile(null);
     setCurrentQuotationId(null);
   };
@@ -315,6 +354,7 @@ function MainApp({ currentUser, onLogout }: { currentUser: User, onLogout: () =>
     setProjectName(q.projectName);
     setDate(q.date);
     setDiscount(q.discount === 0 ? '' : q.discount);
+    setRemarks(q.remarks || '');
     setRows(q.rows.map(row => ({...row})));
     setAttachedFile(null);
     setMode('EDIT');
@@ -326,7 +366,7 @@ function MainApp({ currentUser, onLogout }: { currentUser: User, onLogout: () =>
   };
 
   const handleSave = (isBranch: boolean) => {
-    alert(isBranch ? "枝番として保存しました（モック）" : "新規案件として保存しました（モック）");
+    alert(isBranch ? "修正保存しました（モック）" : "新規保存しました（モック）");
     setMode('SEARCH');
     setHasSearched(false);
     setSearchText('');
@@ -378,7 +418,7 @@ function MainApp({ currentUser, onLogout }: { currentUser: User, onLogout: () =>
                         <td style={styles.searchTd}>{q.customerName}</td>
                         <td style={styles.searchTd}>{q.projectName}</td>
                         <td style={styles.searchTd}>{USERS.find(u => u.id === q.staffId)?.name}</td>
-                        <td style={styles.searchTd}>{grandTotal.toLocaleString()} 円</td>
+                        <td style={styles.searchTd}>¥{grandTotal.toLocaleString()}</td>
                       </tr>
                     );
                   })
@@ -403,10 +443,10 @@ function MainApp({ currentUser, onLogout }: { currentUser: User, onLogout: () =>
     <EditScreen 
       currentUser={currentUser}
       data={{
-        date, estimateNo, searchBranchId, searchStaffId, projectName, customerName, discount, rows, attachedFile, currentQuotationId
+        date, estimateNo, searchBranchId, searchStaffId, projectName, customerName, discount, remarks, rows, attachedFile, currentQuotationId
       }}
       setters={{
-        setSearchBranchId, setSearchStaffId, setProjectName, setCustomerName, setDiscount, setRows, setAttachedFile
+        setSearchBranchId, setSearchStaffId, setProjectName, setCustomerName, setDiscount, setRemarks, setRows, setAttachedFile
       }}
       onBack={() => setMode('SEARCH')}
       onSave={handleSave}
@@ -415,12 +455,12 @@ function MainApp({ currentUser, onLogout }: { currentUser: User, onLogout: () =>
 }
 
 function EditScreen({ currentUser, data, setters, onBack, onSave }: EditScreenProps) {
-  // ★修正2: 未使用変数の削除 (searchCustomerId など)
-  const { date, estimateNo, searchBranchId, searchStaffId, projectName, customerName, discount, rows, attachedFile, currentQuotationId } = data;
-  const { setSearchBranchId, setSearchStaffId, setProjectName, setCustomerName, setDiscount, setRows, setAttachedFile } = setters;
+  const { date, estimateNo, searchBranchId, searchStaffId, projectName, customerName, discount, remarks, rows, attachedFile, currentQuotationId } = data;
+  const { setSearchBranchId, setSearchStaffId, setProjectName, setCustomerName, setDiscount, setRemarks, setRows, setAttachedFile } = setters;
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const inputRefs = useRef<{ [key: string]: HTMLInputElement | HTMLSelectElement | null }>({});
+  const remarksRef = useRef<HTMLTextAreaElement>(null);
 
   const [selectionStart, setSelectionStart] = useState<CellCoords | null>(null);
   const [selectionEnd, setSelectionEnd] = useState<CellCoords | null>(null);
@@ -431,21 +471,34 @@ function EditScreen({ currentUser, data, setters, onBack, onSave }: EditScreenPr
   const userBranch = BRANCHES.find(b => b.id === currentUser.branchId);
 
   const subTotal = rows.filter((r:Row) => r.type === 'normal').reduce((acc:number, row:Row) => acc + (row.price * row.quantity), 0);
-  const taxAmount = Math.floor(subTotal * 0.1);
   const discountValue = typeof discount === 'string' ? 0 : discount;
-  const grandTotal = subTotal + taxAmount - discountValue;
+  const mainTotal =subTotal-discountValue;
+  const taxAmount = Math.floor(mainTotal * 0.1);
+  const grandTotal = mainTotal + taxAmount;
 
   useEffect(() => {
+    if (remarksRef.current) {
+      remarksRef.current.style.height = 'auto'; 
+      remarksRef.current.style.height = `${remarksRef.current.scrollHeight}px`; 
+    }
+  }, [remarks]);
+
+  // ★修正: キー操作のロジック改善
+  useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // 1. テキストエリア編集中は、ここでの制御を一切行わない（文字削除・改行などを優先）
+      if (document.activeElement?.tagName === 'TEXTAREA') return;
+
+      // 2. INPUT編集中で、かつ「範囲選択」をしていない場合は、ここでの制御を行わない（文字削除などを優先）
+      const isInput = document.activeElement?.tagName === 'INPUT';
+      const isRange = selectionStart && selectionEnd && (selectionStart.rowIndex !== selectionEnd.rowIndex || selectionStart.colKey !== selectionEnd.colKey);
+      if (isInput && !isRange) return;
+
+      // 3. 上記以外（セル移動モード、または範囲選択中）でDelete/BackSpaceが押されたらクリア処理
       if (!selectionStart || !selectionEnd) return;
       if (e.key === 'Delete' || e.key === 'Backspace') {
-        const isRange = (selectionStart.rowIndex !== selectionEnd.rowIndex) || (selectionStart.colKey !== selectionEnd.colKey);
-        const isInput = document.activeElement?.tagName === 'INPUT';
-        if (!isRange && isInput && e.key === 'Backspace') return;
-        if (!isInput || isRange) {
-           e.preventDefault();
-           clearSelection();
-        }
+        e.preventDefault();
+        clearSelection();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -577,15 +630,37 @@ function EditScreen({ currentUser, data, setters, onBack, onSave }: EditScreenPr
     navigator.clipboard.writeText(tsv).then(() => { alert('全データをクリップボードにコピーしました。'); });
   };
 
+  // ★修正: 備考欄を含めたページネーション計算（精度向上版）
   const getPages = () => {
     const pages = [];
     let currentRow = 0;
-    pages.push(rows.slice(0, ROWS_FIRST_PAGE));
+    
+    const remarksLineCount = remarks ? remarks.split('\n').length : 1;
+    // 備考欄の高さ(px)を概算 (minHeight 120px)
+    const remarksHeightPx = 10 + (Math.max(remarksLineCount * 18, 120)); 
+    // 合計欄(約100px) + 備考欄
+    const footerHeightPx = 100 + remarksHeightPx; 
+    
+    // 行の高さを22pxと仮定し、フッターに必要な「行数」を算出
+    const footerRowsNeeded = Math.ceil(footerHeightPx / 22);
+
+    const firstPageRows = rows.slice(0, ROWS_FIRST_PAGE);
+    pages.push(firstPageRows);
     currentRow += ROWS_FIRST_PAGE;
+
     while (currentRow < rows.length) {
       pages.push(rows.slice(currentRow, currentRow + ROWS_OTHER_PAGES));
       currentRow += ROWS_OTHER_PAGES;
     }
+
+    const lastPage = pages[pages.length - 1];
+    const maxRowsOnLastPage = pages.length === 1 ? ROWS_FIRST_PAGE : ROWS_OTHER_PAGES;
+    
+    // 最終ページにフッターが入るか判定（余裕をもって+1行）
+    if (lastPage.length + footerRowsNeeded + 1 > maxRowsOnLastPage) {
+      pages.push([]); // 入らない場合は空ページを追加してそこへ送る
+    }
+
     if (pages.length === 0) pages.push([]);
     return pages;
   };
@@ -627,6 +702,7 @@ function EditScreen({ currentUser, data, setters, onBack, onSave }: EditScreenPr
 
       {/* --- 左パネル --- */}
       <div style={styles.leftPanel} className="left-panel-print-hidden">
+        {/* ... (省略なし) ... */}
         <div style={styles.leftHeader}>
           <div style={{marginBottom:'10px'}}>
             <button style={styles.backBtn} onClick={onBack}>← 検索画面へ戻る</button>
@@ -711,7 +787,6 @@ function EditScreen({ currentUser, data, setters, onBack, onSave }: EditScreenPr
                     </td>
                     {renderCell(rIndex, row, 'type', 
                       <select 
-                        // ★修正3: Refのコールバックをブロックで囲む
                         ref={(el) => { inputRefs.current[`${rIndex}-type`] = el; }}
                         onKeyDown={(e) => handleGridKeyDown(e, rIndex, 'type')}
                         style={styles.typeSelect} value={row.type} onChange={(e) => handleInputChange(row.id, 'type', e.target.value)}
@@ -759,7 +834,6 @@ function EditScreen({ currentUser, data, setters, onBack, onSave }: EditScreenPr
                         type="text" style={{...styles.smallInput, textAlign:'right', backgroundColor: '#f0f9ff'}} value={row.price === 0 ? '' : row.price} onChange={e => handleNumberChange(row.id, 'price', e.target.value)} onFocus={(e)=>e.target.select()} 
                       />
                     )}
-                    {/* 金額列 (自動計算・Read Only) */}
                     <td style={styles.amountCell}>
                       {isInputEnabled && row.price > 0 && row.quantity > 0 ? rowAmount.toLocaleString() : ''}
                     </td>
@@ -772,6 +846,17 @@ function EditScreen({ currentUser, data, setters, onBack, onSave }: EditScreenPr
             </tbody>
           </table>
           <button onClick={addRow} style={{marginTop:'10px', width:'100%', padding:'10px', backgroundColor:'#ecf0f1', border:'1px dashed #bdc3c7', cursor:'pointer', color:'#7f8c8d'}}>＋ 行を追加</button>
+        </div>
+
+        <div style={styles.remarksInputArea}>
+          <div style={{fontSize:'0.85em', fontWeight:'bold', color:'#555', marginBottom:'3px'}}>備考 (入力・編集)</div>
+          <textarea 
+            ref={remarksRef}
+            style={styles.remarksInput} 
+            placeholder="ここに備考を入力 (コピペ可)" 
+            value={remarks}
+            onChange={(e) => setRemarks(e.target.value)}
+          />
         </div>
 
         <div style={styles.leftFooter}>
@@ -791,7 +876,7 @@ function EditScreen({ currentUser, data, setters, onBack, onSave }: EditScreenPr
             </div>
             <div style={{...styles.calcItem, borderLeft:'1px solid #999', paddingLeft:'20px'}}>
               <span style={styles.footerLabel}>合計</span>
-              <span style={{...styles.footerValue, color:'#2ecc71', fontSize:'1.5em'}}>{grandTotal.toLocaleString()}</span>
+              <span style={{...styles.footerValue, color:'#2ecc71', fontSize:'1.5em'}}>¥{mainTotal.toLocaleString()}</span>
             </div>
           </div>
         </div>
@@ -815,9 +900,9 @@ function EditScreen({ currentUser, data, setters, onBack, onSave }: EditScreenPr
                       </div>
                       <p style={{fontSize: '0.9em'}}>ご照会賜りました件につきまして、<br/>下記の通り御見積り致します。</p>
                       <div style={styles.summaryBox}>
-                        <div style={styles.summaryRow}><span>ご提供価格 :</span><span>{subTotal.toLocaleString()}</span></div>
+                        <div style={styles.summaryRow}><span>ご提供価格 :</span><span>{mainTotal.toLocaleString()}</span></div>
                         <div style={styles.summaryRow}><span>消費税 (10%) :</span><span>{taxAmount.toLocaleString()}</span></div>
-                        <div style={styles.totalRow}><span>{'総\u3000\u3000額 :'}</span><span>{grandTotal.toLocaleString()} 円</span></div>
+                        <div style={styles.totalRow}><span>{'総\u3000\u3000額 :'}</span><span>¥{grandTotal.toLocaleString()}</span></div>
                       </div>
                     </div>
                     <div style={styles.companyInfo}>
@@ -873,11 +958,13 @@ function EditScreen({ currentUser, data, setters, onBack, onSave }: EditScreenPr
                     <tbody>
                       <tr><td style={{border: '1px solid #000', padding: '5px', backgroundColor:'#f0f0f0'}}>小計</td><td style={{border: '1px solid #000', padding: '5px', textAlign: 'right'}}>{subTotal.toLocaleString()}</td></tr>
                       <tr><td style={{border: '1px solid #000', padding: '5px', backgroundColor:'#f0f0f0'}}>値引き</td><td style={{border: '1px solid #000', padding: '5px', textAlign: 'right'}}>{discountValue > 0 ? `-${discountValue.toLocaleString()}` : '-'}</td></tr>
-                      <tr><td style={{border: '1px solid #000', padding: '5px', backgroundColor:'#f0f0f0', fontWeight: 'bold'}}>合計</td><td style={{border: '1px solid #000', padding: '5px', textAlign: 'right', fontWeight: 'bold'}}>{grandTotal.toLocaleString()} 円</td></tr>
+                      <tr><td style={{border: '1px solid #000', padding: '5px', backgroundColor:'#f0f0f0', fontWeight: 'bold'}}>本体価計</td><td style={{border: '1px solid #000', padding: '5px', textAlign: 'right', fontWeight: 'bold'}}>¥{mainTotal.toLocaleString()}</td></tr>
                     </tbody>
                   </table>
                   <div style={{fontSize: '0.9em', fontWeight: 'bold'}}>備考</div>
-                  <div style={{...styles.remarksBox, border:'1px solid #000', height:'120px'}} />
+                  <div style={{...styles.remarksBox, border:'1px solid #000', height:'auto', minHeight:'120px'}}>
+                    {remarks}
+                  </div>
                 </div>
               )}
             </div>
