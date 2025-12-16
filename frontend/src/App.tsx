@@ -739,7 +739,7 @@ function EditScreen({ currentUser, data, setters, onBack, onSave }: EditScreenPr
               <input 
                 type="text"
                 style={styles.projectInput} 
-                placeholder="例：〇〇病院 MRI室改修工事"
+                placeholder="例：新規開業案件"
                 value={projectName}
                 onChange={(e) => setProjectName(e.target.value)}
               />
