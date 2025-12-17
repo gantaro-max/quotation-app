@@ -83,16 +83,25 @@ Excel ライクな操作性（キーボード移動、コピペ）と、リア�
 
 ### 4.3 見積ヘッダー (Quotation)
 
-| 項目名       | 型     | 説明                      |
-| :----------- | :----- | :------------------------ |
-| id           | number | 見積 ID                   |
-| estimateNo   | string | 見積番号（例: 231215001） |
-| date         | string | 発行日                    |
-| customerName | string | 得意先名                  |
-| projectName  | string | 案件名                    |
-| discount     | number | 値引き額                  |
-| remarks      | string | 備考                      |
-| rows         | Row[]  | 明細行データ配列          |
+| 項目名            | 型         | 説明                                |
+| :---------------- | :--------- | :---------------------------------- |
+| id                | number     | 見積 ID                             |
+| estimateNo        | string     | 見積番号（例: 231215001）           |
+| isSubmitted       | boolean    | 提出済フラグ                        |
+| createdByUserId   | number     | 作成者 ID (必須)                    |
+| **salesBranchId** | **number** | **担当営業所 ID (未定時は NULL)**   |
+| **salesStaffId**  | **number** | **担当営業マン ID (未定時は NULL)** |
+| customerId        | number     | 顧客 ID (手入力時は NULL)           |
+| customerName      | string     | 顧客名（スナップショット）          |
+| projectName       | string     | 案件名                              |
+| totalAmount       | number     | 税抜合計金額                        |
+| totalCost         | number     | 原価合計金額                        |
+| totalProfit       | number     | 粗利金額                            |
+| profitRate        | number     | 粗利率 (%)                          |
+| grandTotal        | number     | 税込合計金額                        |
+| issueDate         | string     | 発行日                              |
+| remarks           | string     | 備考                                |
+| rows              | Row[]      | 明細行データ配列                    |
 
 ### 4.4 見積明細行 (Row)
 
