@@ -5,9 +5,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
-
 import org.springframework.stereotype.Component;
-
 import com.saywell.backend.dto.QuotationDto;
 import com.saywell.backend.entity.Quotation;
 import com.saywell.backend.entity.QuotationItem;
@@ -20,6 +18,7 @@ public class QuotationConverter {
 
     /**
      * 見積Entityと明細リストからDTOに変換
+     * 
      * @param quotation 見積エンティティ
      * @param items 明細リスト
      * @return 見積DTO
@@ -40,6 +39,7 @@ public class QuotationConverter {
 
     /**
      * 見積の新規作成時の初期値を設定
+     * 
      * @param quotation 見積エンティティ
      */
     public void setDefaultValues(Quotation quotation) {
@@ -62,12 +62,14 @@ public class QuotationConverter {
 
     /**
      * 見積をコピーして新しい見積エンティティを作成
+     * 
      * @param source コピー元の見積エンティティ
      * @param newCreatedByUserId 新規作成者のユーザーID
      * @param newUserDepartmentName 新規作成者の部署名
      * @return 新しい見積エンティティ
      */
-    public Quotation copyQuotation(Quotation source, Integer newCreatedByUserId, String newUserDepartmentName) {
+    public Quotation copyQuotation(Quotation source, Integer newCreatedByUserId,
+            String newUserDepartmentName) {
         if (source == null) {
             return null;
         }
@@ -98,6 +100,7 @@ public class QuotationConverter {
 
     /**
      * 明細をコピーして新しい明細エンティティを作成
+     * 
      * @param source コピー元の明細エンティティ
      * @return 新しい明細エンティティ
      */
@@ -122,6 +125,7 @@ public class QuotationConverter {
 
     /**
      * 明細リストをコピーして新しい明細リストを作成
+     * 
      * @param sourceItems コピー元の明細リスト
      * @return 新しい明細リスト
      */
@@ -130,12 +134,8 @@ public class QuotationConverter {
             return new ArrayList<>();
         }
 
-        return sourceItems.stream()
-            .map(this::copyQuotationItem)
-            .collect(Collectors.toList());
+        return sourceItems.stream().map(this::copyQuotationItem).collect(Collectors.toList());
     }
 }
-
-
 
 

@@ -1,81 +1,61 @@
 package com.saywell.backend.repository;
 
 import java.util.List;
+import java.util.Optional; // Null対策に追加推奨
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
+import com.saywell.backend.dto.QuotationDto; // DTOをインポート
 import com.saywell.backend.entity.Quotation;
 import com.saywell.backend.entity.QuotationItem;
 
 @Mapper
 public interface QuotationRepository {
 
+    // --- Entity操作系 (保存・更新用) ---
+
     /**
-     * IDで見積を取得（全ユーザーが参照可能）
-     * @param id 見積ID
-     * @return 見積エンティティ
+     * IDで見積Entityを取得 (更新時の存在チェック用)
      */
     Quotation findById(@Param("id") Long id);
 
     /**
-     * 作成者IDで見積一覧を取得（本人が作成した見積のみ）
-     * @param createdByUserId 作成者ID
-     * @return 見積一覧
-     */
-    List<Quotation> findByCreatedByUserId(@Param("createdByUserId") Integer createdByUserId);
-
-    /**
-     * 見積検索（得意先名、案件名、見積Noの部分一致、全ユーザーが参照可能）
-     * @param customerName 得意先名（部分一致、任意）
-     * @param projectName 案件名（部分一致、任意）
-     * @param estimateNo 見積No（部分一致、任意）
-     * @return 見積一覧
-     */
-    List<Quotation> search(
-        @Param("customerName") String customerName,
-        @Param("projectName") String projectName,
-        @Param("estimateNo") String estimateNo
-    );
-
-    /**
      * 見積を新規保存
-     * @param quotation 見積エンティティ
-     * @return 挿入件数
      */
     int insert(Quotation quotation);
 
     /**
      * 見積を更新保存
-     * @param quotation 見積エンティティ
-     * @return 更新件数
      */
     int update(Quotation quotation);
 
     /**
-     * 見積を削除（作成者本人のみ）
-     * @param id 見積ID
-     * @param createdByUserId 作成者ID
-     * @return 削除件数
+     * 見積を削除
      */
     int delete(@Param("id") Long id, @Param("createdByUserId") Integer createdByUserId);
 
-    /**
-     * 見積IDで明細一覧を取得
-     * @param quotationId 見積ID
-     * @return 明細一覧
-     */
+    // --- 明細操作系 ---
+
     List<QuotationItem> findItemsByQuotationId(@Param("quotationId") Long quotationId);
 
-    /**
-     * 明細を一括挿入
-     * @param items 明細リスト
-     * @return 挿入件数
-     */
     int insertItems(@Param("items") List<QuotationItem> items);
 
-    /**
-     * 見積IDで明細を一括削除
-     * @param quotationId 見積ID
-     * @return 削除件数
-     */
     int deleteItemsByQuotationId(@Param("quotationId") Long quotationId);
+
+    // --- DTO参照系 (画面表示・検索用) ---
+
+    /**
+     * IDで見積DTOを取得 (画面表示・プレビュー用) マスタ情報をJOINし、明細リストも結合して返す
+     */
+    Optional<QuotationDto> findDtoById(@Param("id") Long id);
+
+    /**
+     * 見積検索 (一覧表示用) ※一覧画面でも担当者名などが必要なため、DTOリストで返すと便利です
+     */
+    List<QuotationDto> search(@Param("customerName") String customerName,
+            @Param("projectName") String projectName, @Param("estimateNo") String estimateNo);
+
+    /**
+     * 作成者IDで見積一覧を取得
+     */
+    List<QuotationDto> findByCreatedByUserId(@Param("createdByUserId") Integer createdByUserId);
 }
