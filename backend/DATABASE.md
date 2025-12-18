@@ -75,7 +75,7 @@ erDiagram
 
 | カラム名        | 型           | 制約        | 説明                         |
 | :-------------- | :----------- | :---------- | :--------------------------- |
-| **id**          | INT          | PK, AI      | システム ID (自動採番)       |
+| **id**          | INT          | PK, AI      | システム ID                  |
 | name            | VARCHAR(50)  | NOT NULL    | 利用者名                     |
 | email           | VARCHAR(100) | UNIQUE      | メールアドレス (ログイン ID) |
 | password_hash   | VARCHAR(255) | NOT NULL    | パスワードハッシュ           |
