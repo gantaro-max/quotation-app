@@ -3,6 +3,198 @@
   PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
   "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 
-  <mapper namespace="com.saywell.backend.repository.QuotationRepository">
-  
-  </mapper>
+<mapper namespace="com.saywell.backend.repository.QuotationRepository">
+
+    <!-- 見積結果マッピング -->
+    <resultMap id="QuotationResultMap" type="com.saywell.backend.entity.Quotation">
+        <id property="id" column="id" />
+        <result property="estimateNo" column="estimate_no" />
+        <result property="version" column="version" />
+        <result property="isSubmitted" column="is_submitted" />
+        <result property="createdByUserId" column="created_by_user_id" />
+        <result property="userDepartmentName" column="user_department_name" />
+        <result property="salesBranchId" column="sales_branch_id" />
+        <result property="salesStaffId" column="sales_staff_id" />
+        <result property="customerId" column="customer_id" />
+        <result property="customerName" column="customer_name" />
+        <result property="projectName" column="project_name" />
+        <result property="totalAmount" column="total_amount" />
+        <result property="totalCost" column="total_cost" />
+        <result property="totalProfit" column="total_profit" />
+        <result property="profitRate" column="profit_rate" />
+        <result property="grandTotal" column="grand_total" />
+        <result property="issueDate" column="issue_date" />
+        <result property="remarks" column="remarks" />
+        <result property="attachedFilePath" column="attached_file_path" />
+        <result property="createAt" column="created_at" />
+        <result property="updateAt" column="updated_at" />
+    </resultMap>
+
+    <!-- 明細結果マッピング -->
+    <resultMap id="QuotationItemResultMap" type="com.saywell.backend.entity.QuotationItem">
+        <id property="id" column="id" />
+        <result property="quotationId" column="quotation_id" />
+        <result property="rowOrder" column="row_order" />
+        <result property="rowType" column="row_type" />
+        <result property="itemCode" column="item_code" />
+        <result property="itemName" column="item_name" />
+        <result property="manufacturer" column="manufacturer" />
+        <result property="quantity" column="quantity" />
+        <result property="costPrice" column="cost_price" />
+        <result property="unitPrice" column="unit_price" />
+    </resultMap>
+
+    <!-- IDで見積を取得（全ユーザーが参照可能） -->
+    <select id="findById" resultMap="QuotationResultMap">
+        SELECT *
+        FROM quotations
+        WHERE id = #{id}
+    </select>
+
+    <!-- 作成者IDで見積一覧を取得 -->
+    <select id="findByCreatedByUserId" resultMap="QuotationResultMap">
+        SELECT *
+        FROM quotations
+        WHERE created_by_user_id = #{createdByUserId}
+        ORDER BY created_at DESC
+    </select>
+
+    <!-- 見積検索（部分一致検索、全ユーザーが参照可能） -->
+    <select id="search" resultMap="QuotationResultMap">
+        SELECT *
+        FROM quotations
+        WHERE 1=1
+        <if test="customerName != null and customerName != ''">
+            AND customer_name LIKE CONCAT('%', #{customerName}, '%')
+        </if>
+        <if test="projectName != null and projectName != ''">
+            AND project_name LIKE CONCAT('%', #{projectName}, '%')
+        </if>
+        <if test="estimateNo != null and estimateNo != ''">
+            AND estimate_no LIKE CONCAT('%', #{estimateNo}, '%')
+        </if>
+        ORDER BY created_at DESC
+    </select>
+
+    <!-- 見積を新規保存 -->
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO quotations (
+            estimate_no,
+            version,
+            is_submitted,
+            created_by_user_id,
+            user_department_name,
+            sales_branch_id,
+            sales_staff_id,
+            customer_id,
+            customer_name,
+            project_name,
+            total_amount,
+            total_cost,
+            total_profit,
+            profit_rate,
+            grand_total,
+            issue_date,
+            remarks,
+            attached_file_path,
+            created_at,
+            updated_at
+        ) VALUES (
+            #{estimateNo},
+            #{version},
+            #{isSubmitted},
+            #{createdByUserId},
+            #{userDepartmentName},
+            #{salesBranchId},
+            #{salesStaffId},
+            #{customerId},
+            #{customerName},
+            #{projectName},
+            #{totalAmount},
+            #{totalCost},
+            #{totalProfit},
+            #{profitRate},
+            #{grandTotal},
+            #{issueDate},
+            #{remarks},
+            #{attachedFilePath},
+            NOW(),
+            NOW()
+        )
+    </insert>
+
+    <!-- 見積を更新保存 -->
+    <update id="update">
+        UPDATE quotations
+        SET
+            estimate_no = #{estimateNo},
+            version = #{version},
+            is_submitted = #{isSubmitted},
+            sales_branch_id = #{salesBranchId},
+            sales_staff_id = #{salesStaffId},
+            customer_id = #{customerId},
+            customer_name = #{customerName},
+            project_name = #{projectName},
+            total_amount = #{totalAmount},
+            total_cost = #{totalCost},
+            total_profit = #{totalProfit},
+            profit_rate = #{profitRate},
+            grand_total = #{grandTotal},
+            issue_date = #{issueDate},
+            remarks = #{remarks},
+            attached_file_path = #{attachedFilePath},
+            updated_at = NOW()
+        WHERE id = #{id}
+          AND created_by_user_id = #{createdByUserId}
+    </update>
+
+    <!-- 見積を削除（作成者本人のみ） -->
+    <delete id="delete">
+        DELETE FROM quotations
+        WHERE id = #{id}
+          AND created_by_user_id = #{createdByUserId}
+    </delete>
+
+    <!-- 見積IDで明細一覧を取得 -->
+    <select id="findItemsByQuotationId" resultMap="QuotationItemResultMap">
+        SELECT *
+        FROM quotation_items
+        WHERE quotation_id = #{quotationId}
+        ORDER BY row_order
+    </select>
+
+    <!-- 明細を一括挿入 -->
+    <insert id="insertItems">
+        INSERT INTO quotation_items (
+            quotation_id,
+            row_order,
+            row_type,
+            item_code,
+            item_name,
+            manufacturer,
+            quantity,
+            cost_price,
+            unit_price
+        ) VALUES
+        <foreach collection="items" item="item" separator=",">
+            (
+                #{item.quotationId},
+                #{item.rowOrder},
+                #{item.rowType},
+                #{item.itemCode},
+                #{item.itemName},
+                #{item.manufacturer},
+                #{item.quantity},
+                #{item.costPrice},
+                #{item.unitPrice}
+            )
+        </foreach>
+    </insert>
+
+    <!-- 見積IDで明細を一括削除 -->
+    <delete id="deleteItemsByQuotationId">
+        DELETE FROM quotation_items
+        WHERE quotation_id = #{quotationId}
+    </delete>
+
+</mapper>
