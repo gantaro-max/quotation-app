@@ -53,7 +53,7 @@ public class Quotation {
     private String attachedFilePath;
 
     // システム管理日時
-    private LocalDateTime createAt;
-    private LocalDateTime updateAt;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
 
 }

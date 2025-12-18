@@ -3,6 +3,7 @@ package com.quotationapp.backend.controller;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -14,100 +15,78 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import com.quotationapp.backend.dto.ApiResponse;
 import com.quotationapp.backend.dto.QuotationCopyRequest;
-import com.quotationapp.backend.dto.QuotationCreateRequest;
 import com.quotationapp.backend.dto.QuotationDto;
-import com.quotationapp.backend.dto.QuotationUpdateRequest;
-import com.quotationapp.backend.entity.Quotation;
 import com.quotationapp.backend.service.QuotationService;
-import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 
 /**
- * 見積Controller
+ * 見積Controller GlobalExceptionHandlerの導入により try-catch を削除しシンプル化しました。
  */
 @RestController
 @RequestMapping("/api/quotations")
+@RequiredArgsConstructor
 public class QuotationController {
 
     private final QuotationService quotationService;
 
-    public QuotationController(QuotationService quotationService) {
-        this.quotationService = quotationService;
-    }
+    // =========================================================================
+    // 参照系
+    // =========================================================================
 
     /**
      * 見積詳細を取得（全ユーザーが参照可能） GET /api/quotations/{id}
      */
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<QuotationDto>> findById(@PathVariable Long id) {
-        try {
-            QuotationDto dto = quotationService.findById(id);
-            return ResponseEntity.ok(ApiResponse.success(dto));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(ApiResponse.error(e.getMessage()));
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("見積の取得に失敗しました: " + e.getMessage()));
-        }
+        // エラー(ResourceNotFoundExceptionなど)はGlobalExceptionHandlerが捕捉します
+        QuotationDto dto = quotationService.findDtoById(id);
+        return ResponseEntity.ok(ApiResponse.success(dto));
     }
 
     /**
      * 作成者IDで見積一覧を取得（本人が作成した見積のみ） GET /api/quotations?createdByUserId={userId}
      */
     @GetMapping
-    public ResponseEntity<ApiResponse<List<Quotation>>> findByCreatedByUserId(
+    public ResponseEntity<ApiResponse<List<QuotationDto>>> findByCreatedByUserId(
             @RequestParam(required = false) Integer createdByUserId) {
-        try {
-            List<Quotation> quotations;
-            if (createdByUserId != null) {
-                quotations = quotationService.findByCreatedByUserId(createdByUserId);
-            } else {
-                // createdByUserIdが指定されていない場合は空リストを返す
-                quotations = List.of();
-            }
-            return ResponseEntity.ok(ApiResponse.success(quotations));
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("見積一覧の取得に失敗しました: " + e.getMessage()));
+
+        List<QuotationDto> list;
+        if (createdByUserId != null) {
+            list = quotationService.findByCreatedByUserId(createdByUserId);
+        } else {
+            // 指定がなければ空リストを返す（または全件返すなどの仕様に合わせて変更可）
+            list = List.of();
         }
+        return ResponseEntity.ok(ApiResponse.success(list));
     }
 
     /**
-     * 見積検索（得意先名、案件名、見積Noの部分一致、全ユーザーが参照可能） GET
-     * /api/quotations/search?customerName=...&projectName=...&estimateNo=...
+     * 見積検索（全ユーザーが参照可能） GET /api/quotations/search
      */
     @GetMapping("/search")
-    public ResponseEntity<ApiResponse<List<Quotation>>> search(
+    public ResponseEntity<ApiResponse<List<QuotationDto>>> search(
             @RequestParam(required = false) String customerName,
             @RequestParam(required = false) String projectName,
             @RequestParam(required = false) String estimateNo) {
-        try {
-            List<Quotation> quotations =
-                    quotationService.search(customerName, projectName, estimateNo);
-            return ResponseEntity.ok(ApiResponse.success(quotations));
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("見積の検索に失敗しました: " + e.getMessage()));
-        }
+
+        List<QuotationDto> list = quotationService.search(customerName, projectName, estimateNo);
+        return ResponseEntity.ok(ApiResponse.success(list));
     }
+
+    // =========================================================================
+    // 更新系
+    // =========================================================================
 
     /**
      * 見積を新規保存 POST /api/quotations
      */
     @PostMapping
     public ResponseEntity<ApiResponse<QuotationDto>> create(
-            @Valid @RequestBody QuotationCreateRequest request) {
-        try {
-            QuotationDto dto = quotationService.create(request.getQuotation(), request.getItems());
-            return ResponseEntity.status(HttpStatus.CREATED)
-                    .body(ApiResponse.success("見積を作成しました", dto));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(ApiResponse.error(e.getMessage()));
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("見積の作成に失敗しました: " + e.getMessage()));
-        }
+            @Validated @RequestBody QuotationDto dto) {
+
+        QuotationDto resultDto = quotationService.create(dto);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success("見積を作成しました", resultDto));
     }
 
     /**
@@ -115,30 +94,11 @@ public class QuotationController {
      */
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<QuotationDto>> update(@PathVariable Long id,
-            @Valid @RequestBody QuotationUpdateRequest request,
-            @RequestParam Integer currentUserId) {
-        try {
-            // リクエストの見積IDとパス変数のIDが一致することを確認
-            if (request.getQuotation() != null && request.getQuotation().getId() != null
-                    && !request.getQuotation().getId().equals(id)) {
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                        .body(ApiResponse.error("見積IDが一致しません"));
-            }
-            // パス変数のIDを設定
-            if (request.getQuotation() != null) {
-                request.getQuotation().setId(id);
-            }
+            @Validated @RequestBody QuotationDto dto, @RequestParam Integer currentUserId) {
 
-            QuotationDto dto = quotationService.update(request.getQuotation(), request.getItems(),
-                    currentUserId);
-            return ResponseEntity.ok(ApiResponse.success("見積を更新しました", dto));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(ApiResponse.error(e.getMessage()));
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("見積の更新に失敗しました: " + e.getMessage()));
-        }
+        // 権限エラー時はServiceからUnauthorizedExceptionが投げられます
+        QuotationDto resultDto = quotationService.update(id, dto, currentUserId);
+        return ResponseEntity.ok(ApiResponse.success("見積を更新しました", resultDto));
     }
 
     /**
@@ -147,36 +107,21 @@ public class QuotationController {
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id,
             @RequestParam Integer currentUserId) {
-        try {
-            quotationService.delete(id, currentUserId);
-            return ResponseEntity.ok(ApiResponse.success("見積を削除しました", null));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(ApiResponse.error(e.getMessage()));
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("見積の削除に失敗しました: " + e.getMessage()));
-        }
+
+        quotationService.delete(id, currentUserId);
+        return ResponseEntity.ok(ApiResponse.success("見積を削除しました", null));
     }
 
     /**
-     * 見積をコピーして新規作成（参照した見積から新規の自分の見積を作成） POST /api/quotations/{id}/copy
+     * 見積をコピーして新規作成 POST /api/quotations/{id}/copy
      */
     @PostMapping("/{id}/copy")
     public ResponseEntity<ApiResponse<QuotationDto>> copy(@PathVariable Long id,
-            @Valid @RequestBody QuotationCopyRequest request) {
-        try {
-            QuotationDto dto = quotationService.copy(id, request.getNewCreatedByUserId(),
-                    request.getNewUserDepartmentName());
-            return ResponseEntity.status(HttpStatus.CREATED)
-                    .body(ApiResponse.success("見積をコピーして新規作成しました", dto));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(ApiResponse.error(e.getMessage()));
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("見積のコピーに失敗しました: " + e.getMessage()));
-        }
+            @Validated @RequestBody QuotationCopyRequest request) {
+
+        QuotationDto dto = quotationService.copy(id, request.getNewCreatedByUserId(),
+                request.getNewUserDepartmentName());
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success("見積をコピーして新規作成しました", dto));
     }
 }
-
