@@ -1,7 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<!DOCTYPE mapper
-  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
-  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 
 <mapper namespace="com.saywell.backend.repository.QuotationRepository">
 
@@ -42,7 +40,6 @@
         <result property="unitPrice" column="unit_price" />
     </resultMap>
 
-
     <resultMap id="QuotationDtoMap" type="com.saywell.backend.dto.QuotationDto">
         <id property="id" column="q_id" />
         <result property="estimateNo" column="q_estimate_no" />
@@ -70,7 +67,7 @@
 
         <association property="createdByUser" javaType="com.saywell.backend.dto.UserDto">
             <id property="id" column="u_id"/>
-            <result property="name" column="u_name"/>
+            <result property="name" column="u_name"/>           
         </association>
 
         <association property="salesBranch" javaType="com.saywell.backend.dto.BranchDto">
@@ -104,7 +101,6 @@
         </collection>
     </resultMap>
 
-
     <select id="findById" resultMap="QuotationResultMap">
         SELECT * FROM quotations WHERE id = #{id}
     </select>
@@ -131,25 +127,20 @@
             q.created_at        AS q_created_at,
             q.updated_at        AS q_updated_at,
 
-            -- 作成者
             u.id    AS u_id,
             u.name  AS u_name,
 
-            -- 営業所
             b.id      AS b_id,
             b.name    AS b_name,
             b.address AS b_address,
             b.phone   AS b_phone,
 
-            -- 担当者
             s.id    AS s_id,
             s.name  AS s_name,
 
-            -- 顧客 (マスタ側)
             c.id    AS c_id,
             c.name  AS c_name,
 
-            -- 明細
             i.id            AS i_id,
             i.row_order     AS i_row_order,
             i.row_type      AS i_row_type,
@@ -181,8 +172,8 @@
             q.grand_total       AS q_grand_total,
             q.created_at        AS q_created_at,
             
-            u.name  AS u_name,  -- 作成者名を表示したい場合
-            s.name  AS s_name   -- 担当者名を表示したい場合
+            u.name  AS u_name,
+            s.name  AS s_name
         FROM quotations q
         LEFT JOIN users u        ON q.created_by_user_id = u.id
         LEFT JOIN sales_staffs s ON q.sales_staff_id = s.id

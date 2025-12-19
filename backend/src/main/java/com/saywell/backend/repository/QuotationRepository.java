@@ -58,4 +58,5 @@ public interface QuotationRepository {
      * 作成者IDで見積一覧を取得
      */
     List<QuotationDto> findByCreatedByUserId(@Param("createdByUserId") Integer createdByUserId);
+
 }

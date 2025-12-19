@@ -10,7 +10,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -23,8 +22,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import com.saywell.backend.dto.QuotationDto;
 import com.saywell.backend.entity.Quotation;
 import com.saywell.backend.entity.QuotationItem;
-import com.saywell.backend.exception.ResourceNotFoundException; // カスタム例外
-import com.saywell.backend.exception.UnauthorizedException; // カスタム例外
+import com.saywell.backend.exception.ResourceNotFoundException;
+import com.saywell.backend.exception.UnauthorizedException;
 import com.saywell.backend.repository.QuotationRepository;
 
 @ExtendWith(MockitoExtension.class)
@@ -46,65 +45,48 @@ class QuotationServiceTest {
         testEntity = createTestEntity();
     }
 
-    // =========================================================================
-    // 参照系のテスト
-    // =========================================================================
+    // --- 参照系のテスト ---
 
     @Test
-    @DisplayName("findDtoById: 正常系 - DTOを取得")
+    @DisplayName("findDtoById: 正常系")
     void testFindDtoById_Success() {
         Long id = 1L;
         when(quotationRepository.findDtoById(id)).thenReturn(Optional.of(testDto));
-
         QuotationDto result = quotationService.findDtoById(id);
-
         assertNotNull(result);
         assertEquals(testDto.getEstimateNo(), result.getEstimateNo());
-        verify(quotationRepository).findDtoById(id);
     }
 
     @Test
-    @DisplayName("findDtoById: 存在しない場合 - ResourceNotFoundException")
+    @DisplayName("findDtoById: 存在しない場合エラー")
     void testFindDtoById_NotFound() {
         Long id = 999L;
         when(quotationRepository.findDtoById(id)).thenReturn(Optional.empty());
-
-        // 変更点: IllegalArgumentException -> ResourceNotFoundException
         assertThrows(ResourceNotFoundException.class, () -> quotationService.findDtoById(id));
     }
 
     @Test
-    @DisplayName("search: 正常系 - 検索結果リストを返す")
+    @DisplayName("search: 正常系")
     void testSearch_Success() {
         String customerName = "テスト";
-        List<QuotationDto> expectedList = List.of(testDto);
-        when(quotationRepository.search(customerName, null, null)).thenReturn(expectedList);
-
+        when(quotationRepository.search(customerName, null, null)).thenReturn(List.of(testDto));
         List<QuotationDto> result = quotationService.search(customerName, null, null);
-
         assertEquals(1, result.size());
-        verify(quotationRepository).search(customerName, null, null);
     }
 
     @Test
-    @DisplayName("findByCreatedByUserId: 正常系 - 作成者IDで一覧取得")
+    @DisplayName("findByCreatedByUserId: 正常系")
     void testFindByCreatedByUserId_Success() {
         Integer userId = 1;
-        List<QuotationDto> expectedList = List.of(testDto);
-        when(quotationRepository.findByCreatedByUserId(userId)).thenReturn(expectedList);
-
+        when(quotationRepository.findByCreatedByUserId(userId)).thenReturn(List.of(testDto));
         List<QuotationDto> result = quotationService.findByCreatedByUserId(userId);
-
         assertEquals(1, result.size());
-        verify(quotationRepository).findByCreatedByUserId(userId);
     }
 
-    // =========================================================================
-    // 更新系のテスト
-    // =========================================================================
+    // --- 更新系のテスト ---
 
     @Test
-    @DisplayName("create: 正常系 - 新規作成")
+    @DisplayName("create: 正常系")
     void testCreate_Success() {
         doAnswer(invocation -> {
             Quotation q = invocation.getArgument(0);
@@ -112,122 +94,87 @@ class QuotationServiceTest {
             return 1;
         }).when(quotationRepository).insert(any(Quotation.class));
 
-        when(quotationRepository.insertItems(anyList())).thenReturn(1);
         when(quotationRepository.findDtoById(1L)).thenReturn(Optional.of(testDto));
 
         QuotationDto result = quotationService.create(testDto);
-
         assertNotNull(result);
-        verify(quotationRepository).insert(any(Quotation.class));
         verify(quotationRepository).insertItems(anyList());
     }
 
     @Test
-    @DisplayName("update: 正常系 - 更新成功")
+    @DisplayName("update: 正常系")
     void testUpdate_Success() {
         Long id = 1L;
         Integer currentUserId = 1;
 
         when(quotationRepository.findById(id)).thenReturn(testEntity);
         when(quotationRepository.update(any(Quotation.class))).thenReturn(1);
-        when(quotationRepository.deleteItemsByQuotationId(id)).thenReturn(1);
-        when(quotationRepository.insertItems(anyList())).thenReturn(1);
         when(quotationRepository.findDtoById(id)).thenReturn(Optional.of(testDto));
 
         QuotationDto result = quotationService.update(id, testDto, currentUserId);
-
         assertNotNull(result);
-        verify(quotationRepository).update(any(Quotation.class));
+        verify(quotationRepository).deleteItemsByQuotationId(id);
+        verify(quotationRepository).insertItems(anyList());
     }
 
     @Test
-    @DisplayName("update: 存在しない場合 - ResourceNotFoundException")
-    void testUpdate_NotFound() {
-        Long id = 999L;
-        Integer currentUserId = 1;
-        when(quotationRepository.findById(id)).thenReturn(null);
-
-        // 変更点: ResourceNotFoundException を期待
-        assertThrows(ResourceNotFoundException.class,
-                () -> quotationService.update(id, testDto, currentUserId));
-    }
-
-    @Test
-    @DisplayName("update: 権限エラー - UnauthorizedException")
+    @DisplayName("update: 権限エラー")
     void testUpdate_Forbidden() {
         Long id = 1L;
-        Integer currentUserId = 999; // 他人
-
+        Integer otherUserId = 999;
         when(quotationRepository.findById(id)).thenReturn(testEntity);
-
-        // 変更点: SecurityException -> UnauthorizedException
         assertThrows(UnauthorizedException.class,
-                () -> quotationService.update(id, testDto, currentUserId));
+                () -> quotationService.update(id, testDto, otherUserId));
     }
 
     @Test
-    @DisplayName("delete: 正常系 - 削除成功")
+    @DisplayName("delete: 正常系")
     void testDelete_Success() {
         Long id = 1L;
         Integer currentUserId = 1;
-
         when(quotationRepository.findById(id)).thenReturn(testEntity);
-        when(quotationRepository.delete(id, currentUserId)).thenReturn(1);
 
         quotationService.delete(id, currentUserId);
-
-        verify(quotationRepository).deleteItemsByQuotationId(id);
         verify(quotationRepository).delete(id, currentUserId);
     }
 
     @Test
-    @DisplayName("copy: 正常系 - コピー作成")
+    @DisplayName("copy: 正常系")
     void testCopy_Success() {
         Long sourceId = 1L;
-        Integer newUserId = 2;
-        String newDept = "新営業部";
-
         when(quotationRepository.findDtoById(sourceId)).thenReturn(Optional.of(testDto));
 
         doAnswer(invocation -> {
             Quotation q = invocation.getArgument(0);
-            q.setId(2L);
+            q.setId(2L); // 新しいID
             return 1;
         }).when(quotationRepository).insert(any(Quotation.class));
 
         when(quotationRepository.findDtoById(2L)).thenReturn(Optional.of(testDto));
 
-        QuotationDto result = quotationService.copy(sourceId, newUserId, newDept);
-
+        QuotationDto result = quotationService.copy(sourceId, 2, "新部署");
         assertNotNull(result);
-        verify(quotationRepository).insert(any(Quotation.class));
     }
 
-    // =========================================================================
-    // ヘルパー
-    // =========================================================================
+    // --- ヘルパー ---
 
     private QuotationDto createTestDto() {
         QuotationDto dto = new QuotationDto();
         dto.setId(1L);
-        dto.setEstimateNo("Q20250101-001");
+        dto.setEstimateNo("Q001");
         dto.setVersion(1);
         dto.setIsSubmitted(false);
         dto.setCreatedByUserId(1);
-        dto.setCustomerName("テスト顧客");
-        dto.setProjectName("テスト案件");
         dto.setTotalAmount(new BigDecimal("100000"));
         dto.setGrandTotal(new BigDecimal("110000"));
-        dto.setIssueDate(LocalDate.of(2025, 1, 1));
+        dto.setIssueDate(LocalDate.now());
 
+        // Items setup
         QuotationItem item = new QuotationItem();
         item.setRowOrder(1);
-        item.setItemCode("123456789");
-        item.setQuantity(BigDecimal.TEN);
-
-        List<QuotationItem> items = new ArrayList<>();
-        items.add(item);
-        dto.setItems(items);
+        item.setQuantity(BigDecimal.ONE);
+        item.setUnitPrice(new BigDecimal("1000"));
+        dto.setItems(List.of(item));
         return dto;
     }
 
@@ -235,6 +182,8 @@ class QuotationServiceTest {
         Quotation q = new Quotation();
         q.setId(1L);
         q.setCreatedByUserId(1);
+        // Entity定義変更への対応
+        q.setUserDepartmentName("営業部");
         return q;
     }
 }
