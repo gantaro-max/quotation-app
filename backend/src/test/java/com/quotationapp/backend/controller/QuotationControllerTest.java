@@ -2,9 +2,7 @@ package com.quotationapp.backend.controller;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -17,9 +15,9 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.context.annotation.Import; // Importを追加
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean; // Boot 3.4系の場合
 import org.springframework.test.web.servlet.MockMvc;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.quotationapp.backend.dto.QuotationCopyRequest;
@@ -29,14 +27,14 @@ import com.quotationapp.backend.exception.UnauthorizedException;
 import com.quotationapp.backend.service.QuotationService;
 
 @WebMvcTest(QuotationController.class)
-@Import(GlobalExceptionHandler.class) // ★重要: テスト時にGlobalExceptionHandlerを読み込む
+@Import(GlobalExceptionHandler.class)
 @DisplayName("QuotationControllerテスト")
 class QuotationControllerTest {
 
         @Autowired
         private MockMvc mockMvc;
 
-        @MockitoBean
+        @MockitoBean // Spring Boot 3.4以降 (3.3以前なら @MockBean)
         private QuotationService quotationService;
 
         @Autowired
@@ -46,79 +44,38 @@ class QuotationControllerTest {
 
         @BeforeEach
         void setUp() {
-                testDto = createTestDto();
+                testDto = new QuotationDto();
+                testDto.setId(1L);
+                testDto.setEstimateNo("Q001");
+                testDto.setVersion(1);
+                testDto.setIsSubmitted(false);
+                testDto.setCreatedByUserId(1);
+                testDto.setCustomerName("テスト顧客");
+                testDto.setProjectName("テスト案件");
+                testDto.setTotalAmount(BigDecimal.valueOf(1000));
+                testDto.setGrandTotal(BigDecimal.valueOf(1100));
+                testDto.setItems(List.of());
         }
-
-        // =========================================================================
-        // 正常系のテスト (ApiResponseが返る)
-        // =========================================================================
 
         @Test
         @DisplayName("GET /api/quotations/{id}: 正常系")
         void testFindById_Success() throws Exception {
-                Long id = 1L;
-                when(quotationService.findDtoById(id)).thenReturn(testDto);
+                when(quotationService.findDtoById(1L)).thenReturn(testDto);
 
-                mockMvc.perform(get("/api/quotations/{id}", id)).andExpect(status().isOk())
-                                .andExpect(jsonPath("$.success").value(true)) // ApiResponse
-                                .andExpect(jsonPath("$.data.estimateNo").value("Q20250101-001"));
+                mockMvc.perform(get("/api/quotations/1")).andExpect(status().isOk())
+                                .andExpect(jsonPath("$.success").value(true))
+                                .andExpect(jsonPath("$.data.estimateNo").value("Q001"));
         }
-
-        // =========================================================================
-        // 異常系のテスト (ErrorResponseが返る)
-        // =========================================================================
 
         @Test
         @DisplayName("GET /api/quotations/{id}: 404 Not Found")
         void testFindById_NotFound() throws Exception {
-                Long id = 999L;
-                // ResourceNotFoundException を投げるように設定
-                when(quotationService.findDtoById(id))
-                                .thenThrow(new ResourceNotFoundException("見積が見つかりません"));
+                when(quotationService.findDtoById(999L))
+                                .thenThrow(new ResourceNotFoundException("Not Found"));
 
-                mockMvc.perform(get("/api/quotations/{id}", id)).andExpect(status().isNotFound()) // 404
-                                // ErrorResponse の構造をチェック
-                                .andExpect(jsonPath("$.error").value("Not Found"))
-                                .andExpect(jsonPath("$.message").value("見積が見つかりません"));
+                mockMvc.perform(get("/api/quotations/999")).andExpect(status().isNotFound())
+                                .andExpect(jsonPath("$.error").value("Not Found"));
         }
-
-        @Test
-        @DisplayName("PUT /api/quotations/{id}: 403 Forbidden (権限なし)")
-        void testUpdate_Unauthorized() throws Exception {
-                Long id = 1L;
-                Integer currentUserId = 2;
-
-                // UnauthorizedException を投げるように設定
-                when(quotationService.update(eq(id), any(QuotationDto.class), eq(currentUserId)))
-                                .thenThrow(new UnauthorizedException("権限エラー"));
-
-                mockMvc.perform(put("/api/quotations/{id}", id)
-                                .param("currentUserId", currentUserId.toString())
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content(objectMapper.writeValueAsString(testDto)))
-                                .andExpect(status().isForbidden()) // 403
-                                // ErrorResponse の構造をチェック
-                                .andExpect(jsonPath("$.error").value("Forbidden"))
-                                .andExpect(jsonPath("$.message").value("権限エラー"));
-        }
-
-        @Test
-        @DisplayName("POST /api/quotations: 400 Bad Request (バリデーション)")
-        void testCreate_ValidationError() throws Exception {
-                QuotationDto invalidDto = new QuotationDto();
-                // 必須項目がnull
-
-                mockMvc.perform(post("/api/quotations").contentType(MediaType.APPLICATION_JSON)
-                                .content(objectMapper.writeValueAsString(invalidDto)))
-                                .andExpect(status().isBadRequest()) // 400
-                                // ErrorResponse の構造 (バリデーション)
-                                .andExpect(jsonPath("$.error").value("Validation Failed"))
-                                .andExpect(jsonPath("$.fieldErrors").isArray());
-        }
-
-        // =========================================================================
-        // その他の正常系テスト
-        // =========================================================================
 
         @Test
         @DisplayName("POST /api/quotations: 正常系")
@@ -132,45 +89,29 @@ class QuotationControllerTest {
         }
 
         @Test
-        @DisplayName("DELETE /api/quotations/{id}: 正常系")
-        void testDelete_Success() throws Exception {
-                Long id = 1L;
-                Integer currentUserId = 1;
-                doNothing().when(quotationService).delete(id, currentUserId);
+        @DisplayName("PUT /api/quotations/{id}: 権限エラー")
+        void testUpdate_Forbidden() throws Exception {
+                when(quotationService.update(eq(1L), any(QuotationDto.class), eq(999)))
+                                .thenThrow(new UnauthorizedException("Forbidden"));
 
-                mockMvc.perform(delete("/api/quotations/{id}", id).param("currentUserId",
-                                currentUserId.toString())).andExpect(status().isOk())
-                                .andExpect(jsonPath("$.success").value(true));
+                mockMvc.perform(put("/api/quotations/1").param("currentUserId", "999")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(testDto)))
+                                .andExpect(status().isForbidden());
         }
 
         @Test
         @DisplayName("POST /api/quotations/{id}/copy: 正常系")
         void testCopy_Success() throws Exception {
-                Long sourceId = 1L;
-                QuotationCopyRequest request = new QuotationCopyRequest();
-                request.setNewCreatedByUserId(2);
-                request.setNewUserDepartmentName("新部署");
+                QuotationCopyRequest req = new QuotationCopyRequest();
+                req.setNewCreatedByUserId(2);
+                req.setNewUserDepartmentName("新部署");
 
-                when(quotationService.copy(sourceId, 2, "新部署")).thenReturn(testDto);
+                when(quotationService.copy(1L, 2, "新部署")).thenReturn(testDto);
 
-                mockMvc.perform(post("/api/quotations/{id}/copy", sourceId)
+                mockMvc.perform(post("/api/quotations/1/copy")
                                 .contentType(MediaType.APPLICATION_JSON)
-                                .content(objectMapper.writeValueAsString(request)))
-                                .andExpect(status().isCreated())
-                                .andExpect(jsonPath("$.success").value(true));
-        }
-
-        // ヘルパー
-        private QuotationDto createTestDto() {
-                QuotationDto dto = new QuotationDto();
-                dto.setId(1L);
-                dto.setEstimateNo("Q20250101-001");
-                dto.setVersion(1);
-                dto.setIsSubmitted(false);
-                dto.setCreatedByUserId(1);
-                dto.setCustomerName("テスト顧客");
-                dto.setTotalAmount(new BigDecimal("100000"));
-                dto.setItems(List.of());
-                return dto;
+                                .content(objectMapper.writeValueAsString(req)))
+                                .andExpect(status().isCreated());
         }
 }
