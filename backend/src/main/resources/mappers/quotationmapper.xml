@@ -16,6 +16,7 @@
         <result property="customerName" column="customer_name" />
         <result property="projectName" column="project_name" />
         <result property="totalAmount" column="total_amount" />
+        <result property="discountAmount" column="discount_amount" /> 
         <result property="totalCost" column="total_cost" />
         <result property="totalProfit" column="total_profit" />
         <result property="profitRate" column="profit_rate" />
@@ -47,6 +48,8 @@
         <result property="isSubmitted" column="q_is_submitted" />
         
         <result property="createdByUserId" column="q_created_by_user_id" />
+        <result property="createdByUserName" column="u_name" />
+
         <result property="salesBranchId" column="q_sales_branch_id" />
         <result property="salesStaffId" column="q_sales_staff_id" />
         <result property="customerId" column="q_customer_id" />
@@ -57,6 +60,9 @@
         <result property="remarks" column="q_remarks" />
         
         <result property="totalAmount" column="q_total_amount" />
+        
+        <result property="discountAmount" column="q_discount_amount" />
+
         <result property="totalCost" column="q_total_cost" />
         <result property="totalProfit" column="q_total_profit" />
         <result property="profitRate" column="q_profit_rate" />
@@ -117,7 +123,8 @@
             q.customer_id       AS q_customer_id,
             q.customer_name     AS q_customer_name,
             q.project_name      AS q_project_name,
-            q.total_amount      AS q_total_amount,
+            q.total_amount      AS q_total_amount,           
+            q.discount_amount   AS q_discount_amount,
             q.total_cost        AS q_total_cost,
             q.total_profit      AS q_total_profit,
             q.profit_rate       AS q_profit_rate,
@@ -214,15 +221,13 @@
             estimate_no, version, is_submitted, created_by_user_id,
             user_department_name, sales_branch_id, sales_staff_id,
             customer_id, customer_name, project_name,
-            total_amount, total_cost, total_profit, profit_rate, grand_total,
-            issue_date, remarks, attached_file_path,
+            total_amount, discount_amount, total_cost, total_profit, profit_rate, grand_total, issue_date, remarks, attached_file_path,
             created_at, updated_at
         ) VALUES (
             #{estimateNo}, #{version}, #{isSubmitted}, #{createdByUserId},
             #{userDepartmentName}, #{salesBranchId}, #{salesStaffId},
             #{customerId}, #{customerName}, #{projectName},
-            #{totalAmount}, #{totalCost}, #{totalProfit}, #{profitRate}, #{grandTotal},
-            #{issueDate}, #{remarks}, #{attachedFilePath},
+            #{totalAmount}, #{discountAmount}, #{totalCost}, #{totalProfit}, #{profitRate}, #{grandTotal}, #{issueDate}, #{remarks}, #{attachedFilePath},
             NOW(), NOW()
         )
     </insert>
@@ -239,7 +244,8 @@
             customer_name = #{customerName},
             project_name = #{projectName},
             total_amount = #{totalAmount},
-            total_cost = #{totalCost},
+            
+            discount_amount = #{discountAmount}, total_cost = #{totalCost},
             total_profit = #{totalProfit},
             profit_rate = #{profitRate},
             grand_total = #{grandTotal},

@@ -16,7 +16,6 @@ public class QuotationDto {
     // --- ID・基本情報 ---
     private Long id; // 新規時はnull
 
-    @NotBlank(message = "見積番号は必須です")
     private String estimateNo;
 
     private Integer version;
@@ -33,6 +32,7 @@ public class QuotationDto {
 
     // --- 関連オブジェクト (表示・印刷用 / ネスト) ---
     // 保存リクエスト時には null で送られてきてもOK (無視するだけ)
+    private String createdByUserName;
     private UserDto createdByUser;
     private BranchDto salesBranch;
     private SalesStaffDto salesStaff;
@@ -48,6 +48,7 @@ public class QuotationDto {
 
     // --- 金額系 ---
     private BigDecimal totalAmount;
+    private BigDecimal discountAmount;
     private BigDecimal totalCost;
     private BigDecimal totalProfit;
     private BigDecimal profitRate;

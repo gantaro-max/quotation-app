@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS customers (
 -- Quotations
 CREATE TABLE IF NOT EXISTS quotations (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    estimate_no VARCHAR(20),
+    estimate_no VARCHAR(50),
     version INT,
     is_submitted BOOLEAN,
     created_by_user_id INT,

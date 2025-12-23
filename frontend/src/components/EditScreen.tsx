@@ -3,6 +3,9 @@ import { type Branch, type Customer, type Row, type RowType, type SalesStaff, ty
 
 interface EditScreenProps {
   currentUser: User;
+  isReadOnly: boolean; // ★追加
+  creatorName: string;
+  onCopyCreate: () => void; // ★追加
   data: {
     id: number | null;
     date: string;
@@ -15,7 +18,7 @@ interface EditScreenProps {
     remarks: string;
     rows: Row[];
     attachedFile: File | null;
-    isSubmitted: boolean; // ★追加
+    isSubmitted: boolean;
   };
   setters: {
     setSearchBranchId: (val: number) => void;
@@ -26,7 +29,7 @@ interface EditScreenProps {
     setRemarks: (val: string) => void;
     setRows: (val: Row[]) => void;
     setAttachedFile: (val: File | null) => void;
-    setIsSubmitted: (val: boolean) => void; // ★追加
+    setIsSubmitted: (val: boolean) => void;
   };
   masterData: {
     branches: Branch[];
@@ -41,12 +44,11 @@ interface Point { r: number; c: string; }
 interface SelectionRange { start: Point; end: Point; }
 
 const toHalfWidth = (str: string) => str.replace(/[０-９]/g, (s) => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
-
 const ROWS_FIRST_PAGE = 32;
 const ROWS_OTHER_PAGES = 40;
 
+// スタイル定義
 const styles: { [key: string]: React.CSSProperties } = {
-  // ... (スタイル定義は前回と同じですが、チェックボックス用のスタイルを追加しても良いです)
   container: { display: 'flex', height: '100vh', overflow: 'hidden', fontFamily: '"Hiragino Kaku Gothic ProN", "Meiryo", sans-serif', backgroundColor: '#555', padding: '10px', boxSizing: 'border-box', gap: '15px' },
   leftPanel: { width: '55%', flexShrink: 0, backgroundColor: '#f4f6f9', borderRadius: '4px', display: 'flex', flexDirection: 'column', height: '100%', boxSizing: 'border-box', boxShadow: '0 0 10px rgba(0,0,0,0.3)' },
   leftHeader: { padding: '15px', backgroundColor: 'white', borderBottom: '1px solid #ddd', borderTopLeftRadius: '4px', borderTopRightRadius: '4px', flexShrink: 0 },
@@ -60,7 +62,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   attachBtn: { fontSize: '0.9em', padding: '5px 12px', backgroundColor: '#2980b9', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' },
   fileName: { fontSize: '0.85em', color: '#333', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '200px' },
   backBtn: { fontSize: '0.9em', padding: '5px 15px', backgroundColor: '#7f8c8d', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', marginRight: '10px' },
-  gridContainer: { flexGrow: 1, overflow: 'auto', padding: '0', position: 'relative', backgroundColor: '#fff' },
+  gridContainer: { flexGrow: 1, overflow: 'auto', padding: '0', position: 'relative', backgroundColor: '#fff', userSelect: 'none' },
   gridTable: { width: '100%', borderCollapse: 'collapse', fontSize: '0.85em', backgroundColor: 'white' },
   gridTh: { backgroundColor: '#34495e', color: 'white', padding: '10px 5px', border: '1px solid #2c3e50', textAlign: 'center', whiteSpace: 'nowrap', position: 'sticky', top: 0, zIndex: 100, boxShadow: '0 2px 2px rgba(0,0,0,0.1)' },
   gridTd: { border: '1px solid #dee2e6', padding: '0', verticalAlign: 'middle', backgroundColor: 'white' },
@@ -95,7 +97,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   remarksBox: { border: '1px solid #000', padding: '5px', minHeight: '120px', height: 'auto', marginTop: '2px', width: '100%', whiteSpace: 'pre-wrap', fontSize: '0.8em', lineHeight: '1.2', wordBreak: 'break-all' },
 };
 
-export const EditScreen: React.FC<EditScreenProps> = ({ currentUser, data, setters, masterData, onBack, onSave }) => {
+export const EditScreen: React.FC<EditScreenProps> = ({isReadOnly, creatorName, onCopyCreate, data, setters, masterData, onBack, onSave }) => {
   const { id, date, estimateNo, searchBranchId, searchStaffId, projectName, customerName, discount, remarks, rows, attachedFile, isSubmitted } = data;
   const { setSearchBranchId, setSearchStaffId, setProjectName, setCustomerName, setDiscount, setRemarks, setRows, setAttachedFile, setIsSubmitted } = setters;
   const { branches, staffs, customers } = masterData;
@@ -105,22 +107,27 @@ export const EditScreen: React.FC<EditScreenProps> = ({ currentUser, data, sette
   const remarksRef = useRef<HTMLTextAreaElement>(null);
   
   const [selection, setSelection] = useState<SelectionRange | null>(null);
+  const [isSelecting, setIsSelecting] = useState(false);
 
   const selectedBranch = branches.find(b => b.id === searchBranchId);
-  const selectedStaff = staffs.find(s => s.id === searchStaffId);
 
   const subTotal = rows.filter(r => r.type === 'normal').reduce((acc, row) => acc + (row.price * row.quantity), 0);
-  const discountValue = typeof discount === 'string' ? 0 : discount;
+  const discountValue = Number(discount) || 0;
   const mainTotal = subTotal - discountValue;
   const taxAmount = Math.floor(mainTotal * 0.1);
   const grandTotal = mainTotal + taxAmount;
 
   useEffect(() => { if (remarksRef.current) { remarksRef.current.style.height = 'auto'; remarksRef.current.style.height = `${remarksRef.current.scrollHeight}px`; } }, [remarks]);
 
+  useEffect(() => {
+    const handleGlobalMouseUp = () => setIsSelecting(false);
+    window.addEventListener('mouseup', handleGlobalMouseUp);
+    return () => window.removeEventListener('mouseup', handleGlobalMouseUp);
+  }, []);
+
   const COL_ORDER: (keyof Row)[] = ['type', 'code', 'item', 'quantity', 'cost', 'price'];
 
   const handleGridKeyDown = (e: React.KeyboardEvent, rIndex: number, colKey: string) => {
-    // Shift + 矢印キーで範囲選択
     if (e.shiftKey && (e.key.startsWith('Arrow'))) {
       e.preventDefault();
       const currentPoint = { r: rIndex, c: colKey };
@@ -134,15 +141,31 @@ export const EditScreen: React.FC<EditScreenProps> = ({ currentUser, data, sette
       setSelection({ start: startPoint, end: { r: newEndRow, c: COL_ORDER[newEndColIdx] as string } });
       return;
     }
-    // Deleteキーで一括削除
     if (e.key === 'Delete' || e.key === 'Backspace') {
-       if (selection) { e.preventDefault(); handleDeleteSelection(); return; }
+       // ★ReadOnly時は削除不可
+       if (selection && !isReadOnly) { e.preventDefault(); handleDeleteSelection(); return; }
     }
-    // Enterで下に移動
     if (e.key === 'Enter' && !e.shiftKey) { 
       e.preventDefault(); 
       const nextKey = `${rIndex + 1}-${colKey}`; 
       if (inputRefs.current[nextKey]) { inputRefs.current[nextKey]?.focus(); setSelection(null); }
+    }
+  };
+
+  const handleMouseDown = (rIndex: number, colKey: string) => {
+    setIsSelecting(true);
+    setSelection({
+      start: { r: rIndex, c: colKey },
+      end: { r: rIndex, c: colKey }
+    });
+  };
+
+  const handleMouseEnter = (rIndex: number, colKey: string) => {
+    if (isSelecting) {
+      setSelection(prev => {
+        if (!prev) return null;
+        return { ...prev, end: { r: rIndex, c: colKey } };
+      });
     }
   };
 
@@ -169,49 +192,38 @@ export const EditScreen: React.FC<EditScreenProps> = ({ currentUser, data, sette
     setSelection(null);
   };
 
-  // ★Excelからの貼り付け (Paste)
   const handlePaste = (e: React.ClipboardEvent, startRowIndex: number, startColKey: string) => {
     const text = e.clipboardData.getData('text');
-    // タブ区切りも改行もなければ通常の入力とみなして何もしない
     if (!text.includes('\t') && !text.includes('\n')) return;
-
     e.preventDefault();
     const lines = text.split(/\r\n|\n|\r/).filter(l => l !== '');
     if (lines.length === 0) return;
-
     const matrix = lines.map(line => line.split('\t'));
     const newRows = [...rows];
     const startColIdx = COL_ORDER.indexOf(startColKey as keyof Row);
-
     matrix.forEach((rowVals, rOffset) => {
       const targetR = startRowIndex + rOffset;
       if (targetR >= newRows.length) return;
-
       let updatedRow = { ...newRows[targetR] };
       rowVals.forEach((val, cOffset) => {
         const targetCIdx = startColIdx + cOffset;
         if (targetCIdx >= COL_ORDER.length) return;
-
         const colName = COL_ORDER[targetCIdx];
         if (colName === 'quantity' || colName === 'cost' || colName === 'price') {
           const num = Number(val.replace(/,/g, '').trim());
           updatedRow = { ...updatedRow, [colName]: isNaN(num) ? 0 : num };
         } else if (colName === 'type') {
            if (['normal', 'manufacturer', 'note', 'detail'].includes(val)) { updatedRow = { ...updatedRow, [colName]: val as RowType }; }
-        } else {
-          updatedRow = { ...updatedRow, [colName]: val };
-        }
+        } else { updatedRow = { ...updatedRow, [colName]: val }; }
       });
       newRows[targetR] = updatedRow;
     });
     setRows(newRows);
   };
 
-  // ★Excelへのコピー (Copy) - 選択範囲をタブ区切りテキストとしてクリップボードへ書き込む
   const handleCopy = (e: React.ClipboardEvent) => {
-    if (!selection) return; // 選択範囲がなければ通常のコピー動作に任せる
+    if (!selection) return; 
     e.preventDefault();
-
     const { start, end } = selection;
     const minR = Math.min(start.r, end.r);
     const maxR = Math.max(start.r, end.r);
@@ -219,18 +231,13 @@ export const EditScreen: React.FC<EditScreenProps> = ({ currentUser, data, sette
     const endCIdx = COL_ORDER.indexOf(end.c as keyof Row);
     const minC = Math.min(startCIdx, endCIdx);
     const maxC = Math.max(startCIdx, endCIdx);
-
     let copyText = "";
     for(let r = minR; r <= maxR; r++) {
-      const rowTexts = [];
+      const rowTexts: string[] = [];
       for(let c = minC; c <= maxC; c++) {
         const colName = COL_ORDER[c];
-        const val = rows[r][colName];        
-        if (val !== null && val !== undefined) {
-            rowTexts.push(String(val));
-        } else {
-            rowTexts.push("0"); // または ""
-        }
+        const val = rows[r][colName];
+        if (val !== null && val !== undefined) { rowTexts.push(String(val)); } else { rowTexts.push("0"); }
       }
       copyText += rowTexts.join('\t') + (r < maxR ? '\n' : '');
     }
@@ -269,15 +276,26 @@ export const EditScreen: React.FC<EditScreenProps> = ({ currentUser, data, sette
   const renderCell = (rIndex: number, row: Row, colKey: keyof Row, content: React.ReactNode, extraStyle: React.CSSProperties = {}) => { 
     const isSelected = isInSelection(rIndex, colKey as string);
     const cellStyle = { ...styles.gridTd, ...extraStyle, backgroundColor: isSelected ? '#e6f7ff' : (extraStyle.backgroundColor || 'white'), border: isSelected ? '1px double #3498db' : styles.gridTd.border };
-    return ( <td style={cellStyle}> <div style={{width:'100%', height:'100%'}}>{content}</div> </td> ); 
+    return ( 
+      <td 
+        style={cellStyle}
+        onMouseDown={() => handleMouseDown(rIndex, colKey)}
+        onMouseEnter={() => handleMouseEnter(rIndex, colKey)}
+      > 
+        <div style={{width:'100%', height:'100%'}}>{content}</div> 
+      </td> 
+    ); 
   };
 
   const commonProps = (rIndex: number, colKey: string) => ({
+    disabled: isReadOnly, // ★追加: 読み取り専用なら無効化
     ref: (el: HTMLInputElement | HTMLSelectElement | null) => { inputRefs.current[`${rIndex}-${colKey}`] = el; },
     onKeyDown: (e: React.KeyboardEvent) => handleGridKeyDown(e, rIndex, colKey),
-    onPaste: (e: React.ClipboardEvent) => handlePaste(e, rIndex, colKey),
-    onCopy: (e: React.ClipboardEvent) => handleCopy(e), // ★追加: コピー機能
-    onFocus: () => setSelection(null)
+    onPaste: (e: React.ClipboardEvent) => !isReadOnly && handlePaste(e, rIndex, colKey), // ★Paste禁止
+    onCopy: (e: React.ClipboardEvent) => handleCopy(e),
+    onFocus: () => {
+        if (!isSelecting) setSelection(null); 
+    }
   });
 
   return (
@@ -288,25 +306,33 @@ export const EditScreen: React.FC<EditScreenProps> = ({ currentUser, data, sette
           <div style={{marginBottom:'10px', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
             <div>
               <button style={styles.backBtn} onClick={onBack}>← 検索画面へ戻る</button>
-              <span style={{fontWeight:'bold', fontSize:'1.1em'}}>{id ? `編集モード (ID: ${estimateNo})` : '新規作成モード'}</span>
+              <span style={{fontWeight:'bold', fontSize:'1.1em'}}>
+                {id 
+                  ? (isReadOnly ? '【参照モード】(編集不可)' : `編集モード (ID: ${estimateNo})`) 
+                  : '新規作成モード'}
+              </span>
             </div>
-            {/* ★追加: 提出済チェックボックス */}
             <label style={{display:'flex', alignItems:'center', gap:'5px', cursor:'pointer', padding:'5px', border:'1px solid #ccc', borderRadius:'4px', backgroundColor: isSubmitted ? '#e8f5e9' : '#fff'}}>
-              <input type="checkbox" checked={isSubmitted} onChange={(e) => setIsSubmitted(e.target.checked)} style={{transform:'scale(1.2)'}} />
+              <input 
+                type="checkbox" 
+                checked={isSubmitted} 
+                onChange={(e) => setIsSubmitted(e.target.checked)} 
+                disabled={isReadOnly} 
+                style={{transform:'scale(1.2)'}} 
+              />
               <span style={{fontWeight:'bold', color: isSubmitted ? '#27ae60' : '#555'}}>提出済としてマーク</span>
             </label>
           </div>
           <div style={styles.filterRow}>
-            {/* ... (以下、前回までのコードと同様) */}
             <div style={styles.filterGroup}>
               <label style={styles.labelSmall}>営業所</label>
-              <select style={styles.headerSelect} value={searchBranchId} onChange={(e) => { setSearchBranchId(Number(e.target.value)); setSearchStaffId(0); }}>
+              <select style={styles.headerSelect} value={searchBranchId} onChange={(e) => { setSearchBranchId(Number(e.target.value)); setSearchStaffId(0); }} disabled={isReadOnly}>
                 {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
               </select>
             </div>
             <div style={styles.filterGroup}>
               <label style={styles.labelSmall}>担当者</label>
-              <select style={{...styles.headerSelect, backgroundColor: searchStaffId===0 ? '#fff0f0' : '#fff'}} value={searchStaffId} onChange={(e) => setSearchStaffId(Number(e.target.value))}>
+              <select style={{...styles.headerSelect, backgroundColor: searchStaffId===0 ? '#fff0f0' : '#fff'}} value={searchStaffId} onChange={(e) => setSearchStaffId(Number(e.target.value))} disabled={isReadOnly}>
                 <option value={0}>-- 担当者を選択 --</option>
                 {staffs.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
@@ -315,19 +341,19 @@ export const EditScreen: React.FC<EditScreenProps> = ({ currentUser, data, sette
           <div style={styles.filterRow}>
             <div style={styles.filterGroup}>
               <label style={styles.labelSmall}>得意先 (直接入力可)</label>
-              <input list="customer-list" style={styles.customerSelect} value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="-- 得意先を入力または選択 --" />
+              <input list="customer-list" style={styles.customerSelect} value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="-- 得意先を入力または選択 --" disabled={isReadOnly} />
               <datalist id="customer-list">
                 {customers.map(c => <option key={c.id} value={c.name} />)}
               </datalist>
             </div>
             <div style={styles.filterGroup}>
               <label style={styles.labelSmall}>案件名 (自由入力)</label>
-              <input type="text" style={styles.projectInput} placeholder="例：新規開業案件" value={projectName} onChange={(e) => setProjectName(e.target.value)} />
+              <input type="text" style={styles.projectInput} placeholder="例：新規開業案件" value={projectName} onChange={(e) => setProjectName(e.target.value)} disabled={isReadOnly} />
             </div>
           </div>
           <div style={styles.attachArea}>
-             <input type="file" ref={fileInputRef} style={{display:'none'}} onChange={(e) => e.target.files && setAttachedFile(e.target.files[0])} />
-             <button style={styles.attachBtn} onClick={() => fileInputRef.current?.click()}>📎 仕入見積添付</button>
+             <input type="file" ref={fileInputRef} style={{display:'none'}} onChange={(e) => e.target.files && setAttachedFile(e.target.files[0])} disabled={isReadOnly} />
+             <button style={{...styles.attachBtn, opacity: isReadOnly ? 0.5 : 1}} onClick={() => fileInputRef.current?.click()} disabled={isReadOnly}>📎 仕入見積添付</button>
              <span style={styles.fileName}>{attachedFile ? attachedFile.name : '(未選択)'}</span>
           </div>
         </div>
@@ -343,7 +369,9 @@ export const EditScreen: React.FC<EditScreenProps> = ({ currentUser, data, sette
                 const isNegative = margin < 0; const isInputEnabled = row.type === 'normal' || row.type === 'detail'; const rowAmount = row.price * row.quantity;
                 return (
                   <tr key={row.id}>
-                    <td style={{...styles.gridTd, textAlign:'center'}}><button onClick={() => deleteRow(row.id)} style={{border:'none', background:'transparent', color:'#ccc', cursor:'pointer'}}>×</button></td>
+                    <td style={{...styles.gridTd, textAlign:'center'}}>
+                        {!isReadOnly && <button onClick={() => deleteRow(row.id)} style={{border:'none', background:'transparent', color:'#ccc', cursor:'pointer'}}>×</button>}
+                    </td>
                     {renderCell(rIndex, row, 'type', 
                         <select {...commonProps(rIndex, 'type')} style={styles.typeSelect} value={row.type} onChange={(e) => handleInputChange(row.id, 'type', e.target.value)}>
                             <option value="normal">通常</option><option value="manufacturer">メーカー</option><option value="detail">明細</option><option value="note">注釈</option>
@@ -366,34 +394,39 @@ export const EditScreen: React.FC<EditScreenProps> = ({ currentUser, data, sette
               })}
             </tbody>
           </table>
-          <button onClick={addRow} style={{marginTop:'10px', width:'100%', padding:'10px', backgroundColor:'#ecf0f1', border:'1px dashed #bdc3c7', cursor:'pointer', color:'#7f8c8d'}}>＋ 行を追加</button>
+          {!isReadOnly && <button onClick={addRow} style={{marginTop:'10px', width:'100%', padding:'10px', backgroundColor:'#ecf0f1', border:'1px dashed #bdc3c7', cursor:'pointer', color:'#7f8c8d'}}>＋ 行を追加</button>}
         </div>
         
-        {/* 以下、備考欄とFooter（そのまま） */}
         <div style={styles.remarksInputArea}>
           <div style={{fontSize:'0.85em', fontWeight:'bold', color:'#555', marginBottom:'3px'}}>備考 (入力・編集)</div>
-          <textarea ref={remarksRef} style={styles.remarksInput} placeholder="ここに備考を入力" value={remarks} onChange={(e) => setRemarks(e.target.value)} />
+          <textarea ref={remarksRef} style={styles.remarksInput} placeholder="ここに備考を入力" value={remarks} onChange={(e) => setRemarks(e.target.value)} disabled={isReadOnly} />
         </div>
 
         <div style={styles.leftFooter}>
           <div style={styles.footerBtns}>
-            <button style={styles.footerActionBtn} onClick={() => onSave(true)}>修正保存</button>
-            <button style={{...styles.footerActionBtn, backgroundColor:'#3498db'}} onClick={() => onSave(false)}>新規保存</button>
+            {!isReadOnly ? (
+              <>
+                <button style={styles.footerActionBtn} onClick={() => onSave(true)}>修正保存</button>
+                <button style={{...styles.footerActionBtn, backgroundColor:'#3498db'}} onClick={() => onSave(false)}>新規保存</button>
+              </>
+            ) : (
+                // ★コピー作成ボタン
+                <button style={{...styles.footerActionBtn, backgroundColor:'#8e44ad'}} onClick={onCopyCreate}>📝 この内容をコピーして新規作成</button>
+            )}
             <button style={{...styles.footerActionBtn, backgroundColor:'#95a5a6'}} onClick={() => window.print()}>🖨️ 印刷</button>
           </div>
           <div style={styles.calcContainer}>
             <div style={styles.calcItem}><span style={styles.footerLabel}>小計</span><span style={styles.footerValue}>{subTotal.toLocaleString()}</span></div>
-            <div style={styles.calcItem}><span style={styles.footerLabel}>値引</span><input type="text" style={styles.discountInput} value={discount} onChange={(e) => setDiscount(e.target.value)} placeholder="" /></div>
+            <div style={styles.calcItem}><span style={styles.footerLabel}>値引</span><input type="text" style={styles.discountInput} value={discount} onChange={(e) => setDiscount(e.target.value)} placeholder="" disabled={isReadOnly} /></div>
             <div style={{...styles.calcItem, borderLeft:'1px solid #999', paddingLeft:'20px'}}><span style={styles.footerLabel}>合計</span><span style={{...styles.footerValue, color:'#2ecc71', fontSize:'1.5em'}}>¥{mainTotal.toLocaleString()}</span></div>
           </div>
         </div>
       </div>
 
-      {/* 印刷プレビューパネル（変更なし） */}
       <div style={styles.rightPanel} className="right-panel-print-full">
         {pages.map((pageRows, pageIndex) => {
           const isFirstPage = pageIndex === 0; const isLastPage = pageIndex === pages.length - 1;
-          const currentStaffName = selectedStaff?.name || currentUser.name;
+          const currentStaffName = creatorName;
           const currentBranchName = selectedBranch?.name || '';
           const currentBranchAddress = selectedBranch?.address || '';
           const currentBranchPhone = selectedBranch?.phone || '';
@@ -416,7 +449,7 @@ export const EditScreen: React.FC<EditScreenProps> = ({ currentUser, data, sette
                       </div>
                     </div>
                     <div style={styles.companyInfo}>
-                      見積No: {estimateNo}<br/>日付: {date}<br/><br/><strong>株式会社セイエル</strong><br/>{currentBranchName}<br/>{currentBranchAddress}<br/>TEL: {currentBranchPhone}<br/><div style={{marginTop:'5px', paddingTop:'2px'}}>担当: {currentStaffName}</div>
+                      見積No: {estimateNo}<br/>日付: {date}<br/><br/><strong>株式会社セイエル</strong><br/>{currentBranchName}<br/>{currentBranchAddress}<br/>TEL: {currentBranchPhone}<br/><div style={{marginTop:'5px', paddingTop:'2px'}}>作成: {currentStaffName}</div>
                     </div>
                   </div>
                 </>
