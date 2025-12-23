@@ -58,6 +58,7 @@ function MainApp({ currentUser, onLogout }: { currentUser: User, onLogout: () =>
   const [customerName, setCustomerName] = useState('');
   const [discount, setDiscount] = useState<number | string>('');
   const [remarks, setRemarks] = useState('');
+  const [isSubmitted,setIsSubmitted] = useState(false);
   const [attachedFile, setAttachedFile] = useState<File | null>(null);
   const [rows, setRows] = useState(createInitialRows());
 
@@ -124,6 +125,7 @@ function MainApp({ currentUser, onLogout }: { currentUser: User, onLogout: () =>
     setCustomerName('');
     setDiscount('');
     setRemarks('');
+    setIsSubmitted(false);
     setAttachedFile(null);
     setRows(createInitialRows());
     setCustomers([]); // 新規作成時は顧客リストもクリア
@@ -146,6 +148,7 @@ function MainApp({ currentUser, onLogout }: { currentUser: User, onLogout: () =>
         setCustomerName(q.customerName);
         setProjectName(q.projectName);
         setRemarks(q.remarks);
+        setIsSubmitted(q.isSubmitted);
         setDiscount(''); // DBに保存していない場合は空
 
         // 行データの復元
@@ -212,7 +215,7 @@ function MainApp({ currentUser, onLogout }: { currentUser: User, onLogout: () =>
         id: currentId,
         estimateNo: estimateNo === '新規作成' ? '' : estimateNo,
         version: 1,
-        isSubmitted: false,
+        isSubmitted: isSubmitted,
         createdByUserId: currentUser.id,
         salesBranchId: searchBranchId,
         salesStaffId: searchStaffId,
@@ -260,12 +263,12 @@ function MainApp({ currentUser, onLogout }: { currentUser: User, onLogout: () =>
   return (
     <EditScreen 
       currentUser={currentUser}
-      data={{ id: currentId, date, estimateNo, searchBranchId, searchStaffId, projectName, customerName, discount, remarks, rows, attachedFile }}
+      data={{ id: currentId, date, estimateNo, searchBranchId, searchStaffId, projectName, customerName, discount, remarks, rows, attachedFile, isSubmitted}}
       // ★修正: setterを直接渡すのではなく、ラッパー関数を渡して制御する
       setters={{ 
         setSearchBranchId: handleBranchChange, 
         setSearchStaffId: handleStaffChange, 
-        setProjectName, setCustomerName, setDiscount, setRemarks, setRows, setAttachedFile 
+        setProjectName, setCustomerName, setDiscount, setRemarks, setRows, setAttachedFile, setIsSubmitted 
       }}
       masterData={{ branches, staffs, customers }}
       onBack={() => setMode('SEARCH')}
