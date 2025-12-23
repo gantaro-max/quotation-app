@@ -357,6 +357,7 @@ function MainApp({ currentUser, onLogout }: { currentUser: User, onLogout: () =>
       currentUser={currentUser}
       isReadOnly={isReadOnly} // ★
       onCopyCreate={handleCopyCreate} // ★
+      creatorName={editingCreatorName || currentUser.name}
       data={{ id: currentId, date, estimateNo, searchBranchId, searchStaffId, projectName, customerName, discount, remarks, rows, attachedFile, isSubmitted }}
       setters={{ 
         setSearchBranchId: handleBranchChange, 
