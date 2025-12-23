@@ -40,10 +40,11 @@ export interface Customer {
 
 export interface QuotationDto {
   id: number | null;
-  estimateNo: string;
+  estimateNo: string | null;
   version: number;
   isSubmitted: boolean;
   createdByUserId: number;
+  createdByUserName: string | null;
   salesBranchId: number;
   salesStaffId: number;
   customerId: number | null;
@@ -52,6 +53,7 @@ export interface QuotationDto {
   issueDate: string;
   remarks: string;
   totalAmount: number;
+  discountAmount?: number;
   totalCost: number;
   totalProfit: number;
   profitRate: number;

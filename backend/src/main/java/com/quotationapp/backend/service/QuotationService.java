@@ -1,7 +1,9 @@
 package com.quotationapp.backend.service;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -51,8 +53,6 @@ public class QuotationService {
         return quotationRepository.findByCreatedByUserId(createdByUserId);
     }
 
-    // ★削除: findLoginDtoByEmail は UserService へ移動するため削除しました
-
     // =========================================================================
     // 更新系 (Transactional)
     // =========================================================================
@@ -62,6 +62,12 @@ public class QuotationService {
      */
     @Transactional
     public QuotationDto create(QuotationDto dto) {
+        // ▼▼▼ 追加: フロントから estimateNo が null または空で来たら自動採番する ▼▼▼
+        if (dto.getEstimateNo() == null || dto.getEstimateNo().isEmpty()) {
+            dto.setEstimateNo(generateNewEstimateNo());
+        }
+        // ▲▲▲ 追加終わり ▲▲▲
+
         Quotation quotation = toEntity(dto);
 
         quotation.setId(null);
@@ -85,6 +91,7 @@ public class QuotationService {
         if (existing == null) {
             throw new ResourceNotFoundException("見積が見つかりません。ID: " + id);
         }
+        // 作成者本人チェック (必要に応じてコメントアウト可)
         if (!existing.getCreatedByUserId().equals(currentUserId)) {
             throw new UnauthorizedException("権限エラー: 作成者本人以外の見積は編集できません。");
         }
@@ -92,6 +99,7 @@ public class QuotationService {
         Quotation updateEntity = toEntity(dto);
         updateEntity.setId(id);
 
+        // 変更してはいけないフィールドを既存データから維持
         updateEntity.setCreatedByUserId(existing.getCreatedByUserId());
         updateEntity.setUserDepartmentName(existing.getUserDepartmentName());
         updateEntity.setCreatedAt(existing.getCreatedAt());
@@ -99,6 +107,7 @@ public class QuotationService {
 
         quotationRepository.update(updateEntity);
 
+        // 明細はいったん全削除して再登録 (シンプルな実装)
         quotationRepository.deleteItemsByQuotationId(id);
         saveItems(id, dto.getItems());
 
@@ -123,7 +132,7 @@ public class QuotationService {
     }
 
     /**
-     * 見積コピー
+     * 見積コピー (別案件としてコピーする場合)
      */
     @Transactional
     public QuotationDto copy(Long sourceId, Integer newCreatedByUserId,
@@ -131,6 +140,7 @@ public class QuotationService {
         QuotationDto source = findDtoById(sourceId);
 
         QuotationDto newDto = new QuotationDto();
+        // コピー時は常に新しい番号を発行
         newDto.setEstimateNo(generateNewEstimateNo());
         newDto.setVersion(1);
         newDto.setIsSubmitted(false);
@@ -140,12 +150,15 @@ public class QuotationService {
         newDto.setSalesStaffId(source.getSalesStaffId());
         newDto.setCustomerId(source.getCustomerId());
         newDto.setCustomerName(source.getCustomerName());
-        newDto.setProjectName("【コピー】" + source.getProjectName());
+
+        // 案件名をそのまま引き継ぐ
+        newDto.setProjectName(source.getProjectName());
 
         newDto.setIssueDate(null);
         newDto.setRemarks(source.getRemarks());
 
         newDto.setTotalAmount(source.getTotalAmount());
+        newDto.setDiscountAmount(source.getDiscountAmount());
         newDto.setTotalCost(source.getTotalCost());
         newDto.setTotalProfit(source.getTotalProfit());
         newDto.setProfitRate(source.getProfitRate());
@@ -196,6 +209,7 @@ public class QuotationService {
         q.setCustomerName(dto.getCustomerName());
         q.setProjectName(dto.getProjectName());
         q.setTotalAmount(dto.getTotalAmount());
+        q.setDiscountAmount(dto.getDiscountAmount());
         q.setTotalCost(dto.getTotalCost());
         q.setTotalProfit(dto.getTotalProfit());
         q.setProfitRate(dto.getProfitRate());
@@ -205,7 +219,15 @@ public class QuotationService {
         return q;
     }
 
+    /**
+     * 新しい見積番号を生成する 形式: Q-yyyyMMdd-HHmmss-RRR-01
+     */
     private String generateNewEstimateNo() {
-        return "Q" + System.currentTimeMillis();
+        // 日付と時間の間にハイフンを入れて読みやすく修正
+        String dateStr = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"));
+        int randomNum = ThreadLocalRandom.current().nextInt(100, 1000);
+
+        // Q-日付-ランダム-枝番初期値
+        return "Q-" + dateStr + "-" + randomNum + "-01";
     }
 }

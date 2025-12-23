@@ -1,4 +1,3 @@
-// src/App.tsx
 import { useEffect, useState } from 'react';
 import { EditScreen } from './components/EditScreen';
 import { LoginPage } from './components/LoginPage';
@@ -17,16 +16,33 @@ import {
 // =============================================================================
 type ScreenMode = 'SEARCH' | 'EDIT';
 
-// 初期行データの生成ヘルパー
 const createInitialRows = (): Row[] => 
   Array.from({ length: 20 }, (_, i) => ({ 
     id: i + 1, type: 'normal', code: '', manufacturer: '', item: '', quantity: 0, cost: 0, price: 0 
   }));
 
-// 今日の日付文字列生成ヘルパー
 const getTodayString = () => {
   const now = new Date();
   return `${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日`;
+};
+
+// 枝番採番ロジック
+const generateNextBranchNo = (currentNo: string): string => {
+  if (!currentNo) return '';
+
+  const match = currentNo.match(/^(.*)-(\d+)$/);
+
+  if (match) {
+    const base = match[1];
+    const numStr = match[2];
+    
+    const num = parseInt(numStr, 10);
+    const nextNum = String(num + 1).padStart(numStr.length, '0');
+    
+    return `${base}-${nextNum}`;
+  } else {
+    return `${currentNo}-01`;
+  }
 };
 
 export default function App() {
@@ -46,28 +62,28 @@ export default function App() {
 function MainApp({ currentUser, onLogout }: { currentUser: User, onLogout: () => void }) {
   const [mode, setMode] = useState<ScreenMode>('SEARCH');
   
-  // 編集用State (初期値をここで設定することで、マウント時のresetForm呼び出しを不要にする)
   const [currentId, setCurrentId] = useState<number | null>(null);
+  // ★追加: 現在編集中の見積の作成者ID
+  const [editingCreatorId, setEditingCreatorId] = useState<number | null>(null);
+
+  const [editingCreatorName, setEditingCreatorName] = useState<string>('');
+
   const [estimateNo, setEstimateNo] = useState('新規作成');
   const [date, setDate] = useState(getTodayString());
-  
-  // デフォルトでログインユーザーの営業所IDを設定
   const [searchBranchId, setSearchBranchId] = useState(currentUser.branchId || 9443);
   const [searchStaffId, setSearchStaffId] = useState(0); 
   const [projectName, setProjectName] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [discount, setDiscount] = useState<number | string>('');
   const [remarks, setRemarks] = useState('');
-  const [isSubmitted,setIsSubmitted] = useState(false);
   const [attachedFile, setAttachedFile] = useState<File | null>(null);
   const [rows, setRows] = useState(createInitialRows());
+  const [isSubmitted, setIsSubmitted] = useState(false);
 
-  // マスタデータState
   const [branches, setBranches] = useState<Branch[]>([]);
   const [staffs, setStaffs] = useState<SalesStaff[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
 
-  // 初期ロード：営業所一覧
   useEffect(() => {
     fetch('/api/master/branches')
       .then(res => res.json())
@@ -75,64 +91,78 @@ function MainApp({ currentUser, onLogout }: { currentUser: User, onLogout: () =>
       .catch(e => console.error("営業所取得エラー:", e));
   }, []);
 
-  // 1. 営業所変更 -> 担当者再取得
   useEffect(() => {
     if (!searchBranchId) return;
     fetch(`/api/master/staffs?branchId=${searchBranchId}`)
       .then(res => res.json())
       .then(data => setStaffs(data))
       .catch(e => console.error("担当者取得エラー:", e));
-    
-    // ★修正: ここでの setCustomers([]) を削除。
-    // イベントハンドラ側で制御、またはstaffId変更時の副作用に任せる
   }, [searchBranchId]);
 
-  // 2. 担当者変更 -> 顧客取得
   useEffect(() => {
-    // ★修正: IDが0の場合は何もしない（クリア処理はイベントハンドラで行う）
-    if (!searchStaffId || searchStaffId === 0) {
-      return;
-    }
+    if (!searchStaffId || searchStaffId === 0) return;
     fetch(`/api/master/customers?salesStaffId=${searchStaffId}`)
       .then(res => res.json())
       .then(data => setCustomers(data))
       .catch(e => console.error("顧客取得エラー:", e));
   }, [searchStaffId]);
 
-  // ★追加: 営業所変更時のハンドラ（EditScreenに渡す）
-  // useEffectではなく、操作のタイミングで関連データをリセットする
   const handleBranchChange = (branchId: number) => {
     setSearchBranchId(branchId);
     setSearchStaffId(0);
-    setCustomers([]); // 顧客リストもクリア
+    setCustomers([]);
   };
 
-  // ★追加: 担当者変更時のハンドラ
   const handleStaffChange = (staffId: number) => {
     setSearchStaffId(staffId);
-    if (staffId === 0) {
-      setCustomers([]); // 担当者が未選択になったら顧客もクリア
-    }
+    if (staffId === 0) setCustomers([]);
   };
 
   const resetForm = () => {
     setCurrentId(null);
+    setEditingCreatorId(null); // ★リセット
     setDate(getTodayString());
-    setEstimateNo('新規作成');
+    
+    setEstimateNo('(自動採番)');
+    
     setSearchBranchId(currentUser.branchId || 9443);
     setSearchStaffId(0);
     setProjectName('');
     setCustomerName('');
     setDiscount('');
     setRemarks('');
-    setIsSubmitted(false);
     setAttachedFile(null);
     setRows(createInitialRows());
-    setCustomers([]); // 新規作成時は顧客リストもクリア
+    setCustomers([]);
+    setIsSubmitted(false);
+    setEditingCreatorName('');
   };
 
-  // ★修正: useEffect(() => resetForm(), [currentUser]) を削除
-  // MainAppはログインのたびにマウントされるため、useStateの初期値だけで十分です。
+  // ★追加: 参照中のデータをコピーして新規作成モードへ移行
+  const handleCopyCreate = () => {
+    if (!window.confirm('現在表示中の内容をコピーして、新規作成モードに移行しますか？\n（現在表示している元のデータは変更されません）')) {
+      return;
+    }
+
+    // 1. 基本情報のリセット
+    setCurrentId(null);
+    setEstimateNo('(自動採番)'); 
+    setEditingCreatorId(currentUser.id); // 作成者を自分に変更
+    setEditingCreatorName(currentUser.name);
+    setDate(getTodayString());
+    setIsSubmitted(false);
+
+    // 2. 営業所・担当者・得意先のリセット
+    setSearchBranchId(currentUser.branchId || 9443); 
+    setSearchStaffId(0);
+    setCustomerName('');
+    setCustomers([]); 
+
+    // 3. 添付ファイルのリセット
+    setAttachedFile(null);
+
+    alert('新規作成モードに切り替えました。\n内容を編集して「新規保存」してください。');
+  };
 
   const handleSelectQuotation = async (id: number) => {
     try {
@@ -141,17 +171,18 @@ function MainApp({ currentUser, onLogout }: { currentUser: User, onLogout: () =>
       if(json.success) {
         const q: QuotationDto = json.data;
         setCurrentId(q.id);
-        setEstimateNo(q.estimateNo);
+        setEditingCreatorId(q.createdByUserId); // ★作成者IDをセット
+        setEditingCreatorName(q.createdByUserName || '');
+        setEstimateNo(q.estimateNo || '');
         setDate(q.issueDate.replace(/-/g, '/'));
         setSearchBranchId(q.salesBranchId);
         setSearchStaffId(q.salesStaffId);
         setCustomerName(q.customerName);
         setProjectName(q.projectName);
-        setRemarks(q.remarks);
+        setRemarks(q.remarks);        
+        setDiscount(q.discountAmount !== undefined && q.discountAmount !== null ? q.discountAmount : '');
         setIsSubmitted(q.isSubmitted);
-        setDiscount(''); // DBに保存していない場合は空
 
-        // 行データの復元
         const uiRows: Row[] = q.items.map((item, i) => ({
           id: i + 1,
           dbId: item.id,
@@ -163,17 +194,11 @@ function MainApp({ currentUser, onLogout }: { currentUser: User, onLogout: () =>
           cost: item.costPrice,
           price: item.unitPrice
         }));
-        // 20行未満なら空行で埋める
         while(uiRows.length < 20) {
-          uiRows.push({ 
-            id: uiRows.length + 1, type: 'normal', code: '', manufacturer: '', item: '', quantity: 0, cost: 0, price: 0 
-          });
+          uiRows.push({ id: uiRows.length + 1, type: 'normal', code: '', manufacturer: '', item: '', quantity: 0, cost: 0, price: 0 });
         }
         setRows(uiRows);
         setMode('EDIT');
-        
-        // 編集画面用に顧客リスト等をロードしておく必要がある場合はここで呼ぶことも検討
-        // （現状はuseEffectがsalesStaffIdの変更を検知してロードしてくれます）
       }
     } catch(e) { console.error(e); alert('データ取得エラー'); }
   };
@@ -185,22 +210,48 @@ function MainApp({ currentUser, onLogout }: { currentUser: User, onLogout: () =>
 
   const handleSave = async (isUpdate: boolean) => {
     try {
+      // 1. 必須チェック
       if (searchStaffId === 0) {
         alert('担当者を選択してください。');
         return;
       }
+      if (!customerName.trim()) {
+        alert('得意先名を入力してください。');
+        return;
+      }
+
+      // 2. 計算ロジック
       const subTotal = rows.reduce((acc, r) => acc + (r.price * r.quantity), 0);
       const costTotal = rows.reduce((acc, r) => acc + (r.cost * r.quantity), 0);
       const profit = subTotal - costTotal;
       const profitRate = subTotal > 0 ? (profit / subTotal) * 100 : 0;
-      const tax = Math.floor(subTotal * 0.1);
-      const discountVal = Number(discount) || 0;
-      const grandTotal = (subTotal - discountVal) + tax;
+      
+      const discountVal = discount === '' ? 0 : Number(discount);
+      const mainTotal = subTotal - discountVal;
+      const tax = Math.floor(mainTotal * 0.1);
+      const grandTotal = mainTotal + tax;
+
+      // 3. 枝番・新規判定ロジック
+      let saveAsBranch = false;
+      let finalEstimateNo = estimateNo;
+      
+      if (isUpdate && isSubmitted) {
+        if (window.confirm('この見積は提出済みです。枝番を作成して新しい版として保存しますか？\n（キャンセルを押すと上書き保存を試みます）')) {
+          saveAsBranch = true;
+          finalEstimateNo = generateNextBranchNo(estimateNo);
+        }
+      }
+
+      // 4. ペイロード作成
+      let payloadEstimateNo: string | null = finalEstimateNo;
+      if (finalEstimateNo === '(自動採番)' || finalEstimateNo === '新規作成' || finalEstimateNo === '') {
+        payloadEstimateNo = null;
+      }
 
       const itemsPayload = rows
         .filter(r => r.item || r.quantity > 0 || r.price > 0)
         .map((r, i) => ({
-          id: r.dbId || null,
+          id: saveAsBranch ? null : (r.dbId || null),
           rowOrder: i + 1,
           rowType: r.type,
           itemCode: r.code,
@@ -212,11 +263,12 @@ function MainApp({ currentUser, onLogout }: { currentUser: User, onLogout: () =>
         }));
 
       const payload: QuotationDto = {
-        id: currentId,
-        estimateNo: estimateNo === '新規作成' ? '' : estimateNo,
+        id: saveAsBranch ? null : currentId,
+        estimateNo: payloadEstimateNo,
         version: 1,
-        isSubmitted: isSubmitted,
+        isSubmitted: saveAsBranch ? false : isSubmitted,
         createdByUserId: currentUser.id,
+        createdByUserName: null,
         salesBranchId: searchBranchId,
         salesStaffId: searchStaffId,
         customerId: null,
@@ -225,6 +277,7 @@ function MainApp({ currentUser, onLogout }: { currentUser: User, onLogout: () =>
         issueDate: new Date().toISOString().split('T')[0],
         remarks: remarks,
         totalAmount: subTotal,
+        discountAmount: discountVal,
         totalCost: costTotal,
         totalProfit: profit,
         profitRate: parseFloat(profitRate.toFixed(2)),
@@ -232,22 +285,61 @@ function MainApp({ currentUser, onLogout }: { currentUser: User, onLogout: () =>
         items: itemsPayload as QuotationItemDto[]
       };
 
-      const method = isUpdate ? 'PUT' : 'POST';
-      const url = isUpdate ? `/api/quotations/${currentId}?currentUserId=${currentUser.id}` : '/api/quotations';
+      // 5. 送信
+      const isRealUpdate = isUpdate && !saveAsBranch && currentId !== null;
+      const method = isRealUpdate ? 'PUT' : 'POST';
+      const url = isRealUpdate 
+        ? `/api/quotations/${currentId}?currentUserId=${currentUser.id}` 
+        : '/api/quotations';
+      
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
       const json = await res.json();
+
       if(json.success) {
-        alert('保存しました');
-        setMode('SEARCH');
+        const savedData: QuotationDto = json.data;
+        
+        setCurrentId(savedData.id);
+        setEditingCreatorId(savedData.createdByUserId);
+        setEditingCreatorName(savedData.createdByUserName || currentUser.name);
+        setEstimateNo(savedData.estimateNo || ''); 
+        
+        const msg = saveAsBranch 
+          ? `枝番「${savedData.estimateNo}」を作成して保存しました` 
+          : `保存しました\n見積No: ${savedData.estimateNo}`;
+        alert(msg);
+        
+        setMode('SEARCH'); 
+
       } else {
-        alert('エラー: ' + json.message);
+         console.error("Save Error Response:", json);
+         let errorMsg = '保存エラー: ' + (json.message || '不明なエラー');
+         if (json.errors) {
+             if (Array.isArray(json.errors)) {
+                  // ▼▼▼ 修正箇所: (e: any) を具体的な型定義に変更 ▼▼▼
+                  const details = json.errors.map((e: { field?: string; defaultMessage?: string; message?: string }) => 
+                      `・${e.field || '項目'}: ${e.defaultMessage || e.message}`
+                  ).join('\n');
+                  // ▲▲▲ 修正終わり ▲▲▲
+                  errorMsg += '\n\n【詳細】\n' + details;
+             } else if (typeof json.errors === 'object') {
+                  const details = Object.entries(json.errors).map(([k, v]) => `・${k}: ${v}`).join('\n');
+                  errorMsg += '\n\n【詳細】\n' + details;
+             }
+         }
+         alert(errorMsg);
       }
-    } catch(e) { console.error(e); alert('通信エラー'); }
+    } catch(e) { 
+      console.error(e); 
+      alert('通信エラーが発生しました'); 
+    }
   };
+
+  // ★判定: 「既存IDがあり」かつ「作成者が自分ではない」場合は読み取り専用
+  const isReadOnly = currentId !== null && editingCreatorId !== null && editingCreatorId !== currentUser.id;
 
   if (mode === 'SEARCH') {
     return (
@@ -263,12 +355,13 @@ function MainApp({ currentUser, onLogout }: { currentUser: User, onLogout: () =>
   return (
     <EditScreen 
       currentUser={currentUser}
-      data={{ id: currentId, date, estimateNo, searchBranchId, searchStaffId, projectName, customerName, discount, remarks, rows, attachedFile, isSubmitted}}
-      // ★修正: setterを直接渡すのではなく、ラッパー関数を渡して制御する
+      isReadOnly={isReadOnly} // ★
+      onCopyCreate={handleCopyCreate} // ★
+      data={{ id: currentId, date, estimateNo, searchBranchId, searchStaffId, projectName, customerName, discount, remarks, rows, attachedFile, isSubmitted }}
       setters={{ 
         setSearchBranchId: handleBranchChange, 
         setSearchStaffId: handleStaffChange, 
-        setProjectName, setCustomerName, setDiscount, setRemarks, setRows, setAttachedFile, setIsSubmitted 
+        setProjectName, setCustomerName, setDiscount, setRemarks, setRows, setAttachedFile, setIsSubmitted
       }}
       masterData={{ branches, staffs, customers }}
       onBack={() => setMode('SEARCH')}
