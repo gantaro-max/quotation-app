@@ -68,6 +68,8 @@
         <result property="profitRate" column="q_profit_rate" />
         <result property="grandTotal" column="q_grand_total" />
         
+        <result property="attachedFilePath" column="q_attached_file_path" />
+        
         <result property="createdAt" column="q_created_at" />
         <result property="updatedAt" column="q_updated_at" />
 
@@ -129,6 +131,9 @@
             q.total_profit      AS q_total_profit,
             q.profit_rate       AS q_profit_rate,
             q.grand_total       AS q_grand_total,
+            
+            q.attached_file_path AS q_attached_file_path,
+            
             q.issue_date        AS q_issue_date,
             q.remarks           AS q_remarks,
             q.created_at        AS q_created_at,
@@ -251,7 +256,11 @@
             grand_total = #{grandTotal},
             issue_date = #{issueDate},
             remarks = #{remarks},
-            attached_file_path = #{attachedFilePath},
+            
+            <if test="attachedFilePath != null">
+                attached_file_path = #{attachedFilePath},
+            </if>
+            
             updated_at = NOW()
         WHERE id = #{id}
           AND created_by_user_id = #{createdByUserId}

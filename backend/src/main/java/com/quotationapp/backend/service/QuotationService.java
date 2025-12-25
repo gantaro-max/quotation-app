@@ -163,6 +163,7 @@ public class QuotationService {
         newDto.setTotalProfit(source.getTotalProfit());
         newDto.setProfitRate(source.getProfitRate());
         newDto.setGrandTotal(source.getGrandTotal());
+        newDto.setAttachedFilePath(null);
 
         if (source.getItems() != null) {
             List<QuotationItem> newItems = source.getItems().stream().map(item -> {
@@ -214,6 +215,7 @@ public class QuotationService {
         q.setTotalProfit(dto.getTotalProfit());
         q.setProfitRate(dto.getProfitRate());
         q.setGrandTotal(dto.getGrandTotal());
+        q.setAttachedFilePath(dto.getAttachedFilePath());
         q.setIssueDate(dto.getIssueDate());
         q.setRemarks(dto.getRemarks());
         return q;

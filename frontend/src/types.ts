@@ -58,6 +58,7 @@ export interface QuotationDto {
   totalProfit: number;
   profitRate: number;
   grandTotal: number;
+  attachedFilePath: string | null;
   items: QuotationItemDto[];
   salesBranch?: { name: string; address: string; phone: string };
   salesStaff?: { name: string };

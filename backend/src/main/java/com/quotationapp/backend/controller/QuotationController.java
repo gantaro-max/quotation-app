@@ -1,7 +1,10 @@
 package com.quotationapp.backend.controller;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.List;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -12,7 +15,10 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.quotationapp.backend.dto.ApiResponse;
 import com.quotationapp.backend.dto.QuotationCopyRequest;
 import com.quotationapp.backend.dto.QuotationDto;
@@ -28,6 +34,55 @@ import lombok.RequiredArgsConstructor;
 public class QuotationController {
 
     private final QuotationService quotationService;
+
+    private final ObjectMapper objectMapper; // JSON変換用
+
+    // 保存先ディレクトリ (プロジェクト直下の uploads フォルダ)
+    private static final String UPLOAD_DIR = System.getProperty("user.dir") + "/uploads/";
+
+    // --- ファイル保存用のヘルパーメソッド ---
+    private String saveFile(MultipartFile file) throws IOException {
+        if (file == null || file.isEmpty())
+            return null;
+
+        // フォルダがない場合は作成
+        File dir = new File(UPLOAD_DIR);
+        if (!dir.exists())
+            dir.mkdirs();
+
+        // ファイル名が重複しないように現在時刻を付与
+        String fileName = System.currentTimeMillis() + "_" + file.getOriginalFilename();
+        File dest = new File(UPLOAD_DIR + fileName);
+
+        // 保存実行
+        file.transferTo(dest);
+
+        return fileName; // DBに保存するパス（ファイル名）
+    }
+
+    // --- 新規作成 (POST) ---
+    @PostMapping(consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
+    public ResponseEntity<ApiResponse<QuotationDto>> create(
+            @RequestPart("quotation") String quotationJson, // JSON文字列として受け取る
+            @RequestPart(value = "file", required = false) MultipartFile file) {
+        try {
+            // 文字列JSONをDTOに変換
+            QuotationDto dto = objectMapper.readValue(quotationJson, QuotationDto.class);
+
+            // ファイルがあれば保存してパスをセット
+            if (file != null) {
+                String filePath = saveFile(file);
+                dto.setAttachedFilePath(filePath);
+            }
+
+            QuotationDto result = quotationService.create(dto);
+            return ResponseEntity.ok(ApiResponse.success(result));
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.badRequest().body(ApiResponse.error("保存失敗: " + e.getMessage()));
+        }
+    }
 
     // =========================================================================
     // 参照系
@@ -76,29 +131,32 @@ public class QuotationController {
     // =========================================================================
     // 更新系
     // =========================================================================
-
-    /**
-     * 見積を新規保存 POST /api/quotations
-     */
-    @PostMapping
-    public ResponseEntity<ApiResponse<QuotationDto>> create(
-            @Validated @RequestBody QuotationDto dto) {
-
-        QuotationDto resultDto = quotationService.create(dto);
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success("見積を作成しました", resultDto));
-    }
-
     /**
      * 見積を更新保存（作成者本人のみ） PUT /api/quotations/{id}
      */
-    @PutMapping("/{id}")
+    @PutMapping(value = "/{id}", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
     public ResponseEntity<ApiResponse<QuotationDto>> update(@PathVariable Long id,
-            @Validated @RequestBody QuotationDto dto, @RequestParam Integer currentUserId) {
+            @RequestPart("quotation") String quotationJson,
+            @RequestPart(value = "file", required = false) MultipartFile file,
+            @RequestParam Integer currentUserId) {
+        try {
+            QuotationDto dto = objectMapper.readValue(quotationJson, QuotationDto.class);
 
-        // 権限エラー時はServiceからUnauthorizedExceptionが投げられます
-        QuotationDto resultDto = quotationService.update(id, dto, currentUserId);
-        return ResponseEntity.ok(ApiResponse.success("見積を更新しました", resultDto));
+            // ファイルがアップロードされた場合のみ保存処理
+            if (file != null) {
+                String filePath = saveFile(file);
+                dto.setAttachedFilePath(filePath);
+            }
+            // ※ファイルがnullの場合は「変更なし」として、Service側で既存パスを維持するロジックが必要です
+            // (Service側の実装によりますが、MyBatisのUpdateで <if test="attachedFilePath != null"> になっていればOK)
+
+            QuotationDto result = quotationService.update(id, dto, currentUserId);
+            return ResponseEntity.ok(ApiResponse.success(result));
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.badRequest().body(ApiResponse.error("更新失敗: " + e.getMessage()));
+        }
     }
 
     /**
