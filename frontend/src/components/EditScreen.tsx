@@ -3,9 +3,9 @@ import { type Branch, type Customer, type Row, type RowType, type SalesStaff, ty
 
 interface EditScreenProps {
   currentUser: User;
-  isReadOnly: boolean; // ★追加
+  isReadOnly: boolean;
   creatorName: string;
-  onCopyCreate: () => void; // ★追加
+  onCopyCreate: () => void;
   data: {
     id: number | null;
     date: string;
@@ -60,6 +60,8 @@ const styles: { [key: string]: React.CSSProperties } = {
   projectInput: { padding: '8px', fontSize: '1em', borderRadius: '4px', border: '2px solid #3498db', width: '100%', fontWeight: 'bold', color: '#2c3e50', backgroundColor: '#ebf5fb', boxSizing: 'border-box' },
   attachArea: { marginTop: '10px', padding: '10px', backgroundColor: '#f8f9fa', border: '1px dashed #ccc', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '10px' },
   attachBtn: { fontSize: '0.9em', padding: '5px 12px', backgroundColor: '#2980b9', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' },
+  // ★追加: ツールボタンのスタイル
+  toolBtn: { fontSize: '0.9em', padding: '5px 12px', backgroundColor: '#fff', color: '#333', border: '1px solid #ccc', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' },
   fileName: { fontSize: '0.85em', color: '#333', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '200px' },
   backBtn: { fontSize: '0.9em', padding: '5px 15px', backgroundColor: '#7f8c8d', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', marginRight: '10px' },
   gridContainer: { flexGrow: 1, overflow: 'auto', padding: '0', position: 'relative', backgroundColor: '#fff', userSelect: 'none' },
@@ -142,7 +144,6 @@ export const EditScreen: React.FC<EditScreenProps> = ({isReadOnly, creatorName, 
       return;
     }
     if (e.key === 'Delete' || e.key === 'Backspace') {
-       // ★ReadOnly時は削除不可
        if (selection && !isReadOnly) { e.preventDefault(); handleDeleteSelection(); return; }
     }
     if (e.key === 'Enter' && !e.shiftKey) { 
@@ -152,7 +153,8 @@ export const EditScreen: React.FC<EditScreenProps> = ({isReadOnly, creatorName, 
     }
   };
 
-  const handleMouseDown = (rIndex: number, colKey: string) => {
+  const handleMouseDown = (e: React.MouseEvent,rIndex: number, colKey: string) => {
+    if (e.button !== 0) return;
     setIsSelecting(true);
     setSelection({
       start: { r: rIndex, c: colKey },
@@ -192,15 +194,14 @@ export const EditScreen: React.FC<EditScreenProps> = ({isReadOnly, creatorName, 
     setSelection(null);
   };
 
-  const handlePaste = (e: React.ClipboardEvent, startRowIndex: number, startColKey: string) => {
-    const text = e.clipboardData.getData('text');
-    if (!text.includes('\t') && !text.includes('\n')) return;
-    e.preventDefault();
+  // ペースト処理のロジック（共通化）
+  const processPaste = (text: string, startRowIndex: number, startColKey: string) => {
     const lines = text.split(/\r\n|\n|\r/).filter(l => l !== '');
     if (lines.length === 0) return;
     const matrix = lines.map(line => line.split('\t'));
     const newRows = [...rows];
     const startColIdx = COL_ORDER.indexOf(startColKey as keyof Row);
+    
     matrix.forEach((rowVals, rOffset) => {
       const targetR = startRowIndex + rOffset;
       if (targetR >= newRows.length) return;
@@ -221,9 +222,16 @@ export const EditScreen: React.FC<EditScreenProps> = ({isReadOnly, creatorName, 
     setRows(newRows);
   };
 
-  const handleCopy = (e: React.ClipboardEvent) => {
-    if (!selection) return; 
+  // Ctrl+V 用ハンドラ
+  const handlePaste = (e: React.ClipboardEvent, startRowIndex: number, startColKey: string) => {
+    const text = e.clipboardData.getData('text');
+    if (!text.includes('\t') && !text.includes('\n')) return;
     e.preventDefault();
+    processPaste(text, startRowIndex, startColKey);
+  };
+
+  const getSelectedText = (): string | null => {
+    if (!selection) return null;
     const { start, end } = selection;
     const minR = Math.min(start.r, end.r);
     const maxR = Math.max(start.r, end.r);
@@ -231,6 +239,7 @@ export const EditScreen: React.FC<EditScreenProps> = ({isReadOnly, creatorName, 
     const endCIdx = COL_ORDER.indexOf(end.c as keyof Row);
     const minC = Math.min(startCIdx, endCIdx);
     const maxC = Math.max(startCIdx, endCIdx);
+
     let copyText = "";
     for(let r = minR; r <= maxR; r++) {
       const rowTexts: string[] = [];
@@ -241,7 +250,59 @@ export const EditScreen: React.FC<EditScreenProps> = ({isReadOnly, creatorName, 
       }
       copyText += rowTexts.join('\t') + (r < maxR ? '\n' : '');
     }
-    e.clipboardData.setData('text/plain', copyText);
+    return copyText;
+  };
+
+  // Ctrl+C 用ハンドラ
+  const handleCopy = (e: React.ClipboardEvent) => {
+    if (!selection) return; 
+    e.preventDefault();
+    const text = getSelectedText();
+    if (text) {
+        e.clipboardData.setData('text/plain', text);
+    }
+  };
+
+  // ボタンからのコピー
+  const handleManualCopy = async () => {
+    const text = getSelectedText();
+    if (!text) {
+        alert('セルが選択されていません');
+        return;
+    }
+    try {
+        await navigator.clipboard.writeText(text);
+    } catch (err) {
+        console.error('コピーに失敗しました:', err);
+        alert('コピーに失敗しました');
+    }
+  };
+
+  // ★追加: ボタンからの貼り付け
+  const handleManualPaste = async () => {
+    if (isReadOnly) return;
+    if (!selection) {
+        alert('貼り付け開始位置(セル)を選択してください');
+        return;
+    }
+    try {
+        const text = await navigator.clipboard.readText();
+        if (!text) return;
+        
+        // 選択範囲の開始位置（左上）を基準にする
+        const { start, end } = selection;
+        const minR = Math.min(start.r, end.r);
+        const startCIdx = COL_ORDER.indexOf(start.c as keyof Row);
+        const endCIdx = COL_ORDER.indexOf(end.c as keyof Row);
+        const minCIdx = Math.min(startCIdx, endCIdx);
+        const startColKey = COL_ORDER[minCIdx] as string;
+
+        processPaste(text, minR, startColKey);
+
+    } catch (err) {
+        console.error('貼り付けに失敗しました:', err);
+        alert('貼り付けに失敗しました(ブラウザの許可が必要な場合があります)');
+    }
   };
 
   const isInSelection = (rIndex: number, colKey: string) => {
@@ -279,7 +340,7 @@ export const EditScreen: React.FC<EditScreenProps> = ({isReadOnly, creatorName, 
     return ( 
       <td 
         style={cellStyle}
-        onMouseDown={() => handleMouseDown(rIndex, colKey)}
+        onMouseDown={(e) => handleMouseDown(e,rIndex, colKey)}
         onMouseEnter={() => handleMouseEnter(rIndex, colKey)}
       > 
         <div style={{width:'100%', height:'100%'}}>{content}</div> 
@@ -288,14 +349,11 @@ export const EditScreen: React.FC<EditScreenProps> = ({isReadOnly, creatorName, 
   };
 
   const commonProps = (rIndex: number, colKey: string) => ({
-    disabled: isReadOnly, // ★追加: 読み取り専用なら無効化
+    disabled: isReadOnly,
     ref: (el: HTMLInputElement | HTMLSelectElement | null) => { inputRefs.current[`${rIndex}-${colKey}`] = el; },
     onKeyDown: (e: React.KeyboardEvent) => handleGridKeyDown(e, rIndex, colKey),
-    onPaste: (e: React.ClipboardEvent) => !isReadOnly && handlePaste(e, rIndex, colKey), // ★Paste禁止
+    onPaste: (e: React.ClipboardEvent) => !isReadOnly && handlePaste(e, rIndex, colKey),
     onCopy: (e: React.ClipboardEvent) => handleCopy(e),
-    onFocus: () => {
-        if (!isSelecting) setSelection(null); 
-    }
   });
 
   return (
@@ -352,6 +410,15 @@ export const EditScreen: React.FC<EditScreenProps> = ({isReadOnly, creatorName, 
             </div>
           </div>
           <div style={styles.attachArea}>
+             {/* ★修正: 左側にコピー・貼り付けボタンを追加 */}
+             <div style={{display:'flex', gap:'5px', marginRight:'15px', borderRight:'1px solid #ccc', paddingRight:'15px'}}>
+               <button onClick={handleManualCopy} style={styles.toolBtn} title="選択範囲をコピー">📄 コピー</button>
+               {!isReadOnly && (
+                 <button onClick={handleManualPaste} style={styles.toolBtn} title="現在のセルに貼り付け">📋 貼付</button>
+               )}
+             </div>
+
+             {/* ファイル添付エリア */}
              <input type="file" ref={fileInputRef} style={{display:'none'}} onChange={(e) => e.target.files && setAttachedFile(e.target.files[0])} disabled={isReadOnly} />
              <button style={{...styles.attachBtn, opacity: isReadOnly ? 0.5 : 1}} onClick={() => fileInputRef.current?.click()} disabled={isReadOnly}>📎 仕入見積添付</button>
              <span style={styles.fileName}>{attachedFile ? attachedFile.name : '(未選択)'}</span>
@@ -394,7 +461,13 @@ export const EditScreen: React.FC<EditScreenProps> = ({isReadOnly, creatorName, 
               })}
             </tbody>
           </table>
-          {!isReadOnly && <button onClick={addRow} style={{marginTop:'10px', width:'100%', padding:'10px', backgroundColor:'#ecf0f1', border:'1px dashed #bdc3c7', cursor:'pointer', color:'#7f8c8d'}}>＋ 行を追加</button>}
+        </div>
+
+        {/* ★修正: コピーボタンは上に移動したため、ここには行追加ボタンのみ残す */}
+        <div style={{marginTop:'10px', marginBottom:'10px', padding:'0 10px', display:'flex', gap:'10px'}}>
+          {!isReadOnly && (
+            <button onClick={addRow} style={{flex:1, padding:'10px', backgroundColor:'#ecf0f1', border:'1px dashed #bdc3c7', cursor:'pointer', color:'#7f8c8d'}}>＋ 行を追加</button>
+          )}
         </div>
         
         <div style={styles.remarksInputArea}>
@@ -410,7 +483,6 @@ export const EditScreen: React.FC<EditScreenProps> = ({isReadOnly, creatorName, 
                 <button style={{...styles.footerActionBtn, backgroundColor:'#3498db'}} onClick={() => onSave(false)}>新規保存</button>
               </>
             ) : (
-                // ★コピー作成ボタン
                 <button style={{...styles.footerActionBtn, backgroundColor:'#8e44ad'}} onClick={onCopyCreate}>📝 この内容をコピーして新規作成</button>
             )}
             <button style={{...styles.footerActionBtn, backgroundColor:'#95a5a6'}} onClick={() => window.print()}>🖨️ 印刷</button>

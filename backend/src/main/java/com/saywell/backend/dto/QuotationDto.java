@@ -54,6 +54,9 @@ public class QuotationDto {
     private BigDecimal profitRate;
     private BigDecimal grandTotal;
 
+    // 仕入見積保存パス
+    private String attachedFilePath;
+
     // --- 明細リスト ---
     @Valid // リストの中身もバリデーション
     private List<QuotationItem> items;

@@ -63,9 +63,7 @@ function MainApp({ currentUser, onLogout }: { currentUser: User, onLogout: () =>
   const [mode, setMode] = useState<ScreenMode>('SEARCH');
   
   const [currentId, setCurrentId] = useState<number | null>(null);
-  // ★追加: 現在編集中の見積の作成者ID
   const [editingCreatorId, setEditingCreatorId] = useState<number | null>(null);
-
   const [editingCreatorName, setEditingCreatorName] = useState<string>('');
 
   const [estimateNo, setEstimateNo] = useState('新規作成');
@@ -76,7 +74,10 @@ function MainApp({ currentUser, onLogout }: { currentUser: User, onLogout: () =>
   const [customerName, setCustomerName] = useState('');
   const [discount, setDiscount] = useState<number | string>('');
   const [remarks, setRemarks] = useState('');
+  
+  // ★添付ファイルの実体(Fileオブジェクト)を管理するState
   const [attachedFile, setAttachedFile] = useState<File | null>(null);
+  
   const [rows, setRows] = useState(createInitialRows());
   const [isSubmitted, setIsSubmitted] = useState(false);
 
@@ -120,7 +121,7 @@ function MainApp({ currentUser, onLogout }: { currentUser: User, onLogout: () =>
 
   const resetForm = () => {
     setCurrentId(null);
-    setEditingCreatorId(null); // ★リセット
+    setEditingCreatorId(null);
     setDate(getTodayString());
     
     setEstimateNo('(自動採番)');
@@ -138,7 +139,7 @@ function MainApp({ currentUser, onLogout }: { currentUser: User, onLogout: () =>
     setEditingCreatorName('');
   };
 
-  // ★追加: 参照中のデータをコピーして新規作成モードへ移行
+  // 参照中のデータをコピーして新規作成モードへ移行
   const handleCopyCreate = () => {
     if (!window.confirm('現在表示中の内容をコピーして、新規作成モードに移行しますか？\n（現在表示している元のデータは変更されません）')) {
       return;
@@ -158,7 +159,7 @@ function MainApp({ currentUser, onLogout }: { currentUser: User, onLogout: () =>
     setCustomerName('');
     setCustomers([]); 
 
-    // 3. 添付ファイルのリセット
+    // 3. 添付ファイルのリセット（ファイルはコピーしない仕様）
     setAttachedFile(null);
 
     alert('新規作成モードに切り替えました。\n内容を編集して「新規保存」してください。');
@@ -171,7 +172,7 @@ function MainApp({ currentUser, onLogout }: { currentUser: User, onLogout: () =>
       if(json.success) {
         const q: QuotationDto = json.data;
         setCurrentId(q.id);
-        setEditingCreatorId(q.createdByUserId); // ★作成者IDをセット
+        setEditingCreatorId(q.createdByUserId);
         setEditingCreatorName(q.createdByUserName || '');
         setEstimateNo(q.estimateNo || '');
         setDate(q.issueDate.replace(/-/g, '/'));
@@ -182,6 +183,9 @@ function MainApp({ currentUser, onLogout }: { currentUser: User, onLogout: () =>
         setRemarks(q.remarks);        
         setDiscount(q.discountAmount !== undefined && q.discountAmount !== null ? q.discountAmount : '');
         setIsSubmitted(q.isSubmitted);
+        
+        // ★修正: 既存データを開くときは、新規アップロードファイル選択状態をリセット
+        setAttachedFile(null); 
 
         const uiRows: Row[] = q.items.map((item, i) => ({
           id: i + 1,
@@ -208,6 +212,7 @@ function MainApp({ currentUser, onLogout }: { currentUser: User, onLogout: () =>
     setMode('EDIT');
   };
 
+  // ★修正: FormDataを使った送信処理に変更
   const handleSave = async (isUpdate: boolean) => {
     try {
       // 1. 必須チェック
@@ -242,7 +247,6 @@ function MainApp({ currentUser, onLogout }: { currentUser: User, onLogout: () =>
         }
       }
 
-      // 4. ペイロード作成
       let payloadEstimateNo: string | null = finalEstimateNo;
       if (finalEstimateNo === '(自動採番)' || finalEstimateNo === '新規作成' || finalEstimateNo === '') {
         payloadEstimateNo = null;
@@ -262,6 +266,7 @@ function MainApp({ currentUser, onLogout }: { currentUser: User, onLogout: () =>
           unitPrice: r.price
         }));
 
+      // 4. ペイロード(DTO)作成
       const payload: QuotationDto = {
         id: saveAsBranch ? null : currentId,
         estimateNo: payloadEstimateNo,
@@ -282,10 +287,23 @@ function MainApp({ currentUser, onLogout }: { currentUser: User, onLogout: () =>
         totalProfit: profit,
         profitRate: parseFloat(profitRate.toFixed(2)),
         grandTotal: grandTotal,
+        // ファイル実体はFormDataで送るので、JSONデータ内はnullにする
+        attachedFilePath: null, 
         items: itemsPayload as QuotationItemDto[]
       };
 
-      // 5. 送信
+      // 5. FormDataの作成と送信
+      const formData = new FormData();
+      
+      // JSONデータをBlobとして追加 ('quotation'というキーはBackendの@RequestPartと一致させる)
+      const jsonBlob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+      formData.append('quotation', jsonBlob);
+
+      // ファイルがあれば追加
+      if (attachedFile) {
+        formData.append('file', attachedFile);
+      }
+
       const isRealUpdate = isUpdate && !saveAsBranch && currentId !== null;
       const method = isRealUpdate ? 'PUT' : 'POST';
       const url = isRealUpdate 
@@ -294,8 +312,8 @@ function MainApp({ currentUser, onLogout }: { currentUser: User, onLogout: () =>
       
       const res = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        // headers: { 'Content-Type': 'application/json' }, ← これを削除！(ブラウザが自動設定するため)
+        body: formData 
       });
       const json = await res.json();
 
@@ -312,18 +330,18 @@ function MainApp({ currentUser, onLogout }: { currentUser: User, onLogout: () =>
           : `保存しました\n見積No: ${savedData.estimateNo}`;
         alert(msg);
         
+        // 保存後は一覧に戻り、ファイル選択状態をクリア
         setMode('SEARCH'); 
+        setAttachedFile(null);
 
       } else {
          console.error("Save Error Response:", json);
          let errorMsg = '保存エラー: ' + (json.message || '不明なエラー');
          if (json.errors) {
              if (Array.isArray(json.errors)) {
-                  // ▼▼▼ 修正箇所: (e: any) を具体的な型定義に変更 ▼▼▼
                   const details = json.errors.map((e: { field?: string; defaultMessage?: string; message?: string }) => 
                       `・${e.field || '項目'}: ${e.defaultMessage || e.message}`
                   ).join('\n');
-                  // ▲▲▲ 修正終わり ▲▲▲
                   errorMsg += '\n\n【詳細】\n' + details;
              } else if (typeof json.errors === 'object') {
                   const details = Object.entries(json.errors).map(([k, v]) => `・${k}: ${v}`).join('\n');
@@ -338,7 +356,6 @@ function MainApp({ currentUser, onLogout }: { currentUser: User, onLogout: () =>
     }
   };
 
-  // ★判定: 「既存IDがあり」かつ「作成者が自分ではない」場合は読み取り専用
   const isReadOnly = currentId !== null && editingCreatorId !== null && editingCreatorId !== currentUser.id;
 
   if (mode === 'SEARCH') {
@@ -355,8 +372,8 @@ function MainApp({ currentUser, onLogout }: { currentUser: User, onLogout: () =>
   return (
     <EditScreen 
       currentUser={currentUser}
-      isReadOnly={isReadOnly} // ★
-      onCopyCreate={handleCopyCreate} // ★
+      isReadOnly={isReadOnly}
+      onCopyCreate={handleCopyCreate}
       creatorName={editingCreatorName || currentUser.name}
       data={{ id: currentId, date, estimateNo, searchBranchId, searchStaffId, projectName, customerName, discount, remarks, rows, attachedFile, isSubmitted }}
       setters={{ 
