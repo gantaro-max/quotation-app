@@ -6,6 +6,7 @@ interface EditScreenProps {
   isReadOnly: boolean;
   creatorName: string;
   onCopyCreate: () => void;
+  onTransitionToNew: () => void;
   data: {
     id: number | null;
     date: string;
@@ -18,6 +19,7 @@ interface EditScreenProps {
     remarks: string;
     rows: Row[];
     attachedFile: File | null;
+    attachedFilePath: string | null;
     isSubmitted: boolean;
   };
   setters: {
@@ -28,7 +30,7 @@ interface EditScreenProps {
     setDiscount: (val: number | string) => void;
     setRemarks: (val: string) => void;
     setRows: (val: Row[]) => void;
-    setAttachedFile: (val: File | null) => void;
+    setAttachedFile: (val: File | null) => void;    
     setIsSubmitted: (val: boolean) => void;
   };
   masterData: {
@@ -59,8 +61,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   customerSelect: { padding: '8px', fontSize: '1em', borderRadius: '4px', border: '1px solid #ccc', width: '100%', fontWeight: 'bold', color: '#2c3e50' },
   projectInput: { padding: '8px', fontSize: '1em', borderRadius: '4px', border: '2px solid #3498db', width: '100%', fontWeight: 'bold', color: '#2c3e50', backgroundColor: '#ebf5fb', boxSizing: 'border-box' },
   attachArea: { marginTop: '10px', padding: '10px', backgroundColor: '#f8f9fa', border: '1px dashed #ccc', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '10px' },
-  attachBtn: { fontSize: '0.9em', padding: '5px 12px', backgroundColor: '#2980b9', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' },
-  // ★追加: ツールボタンのスタイル
+  attachBtn: { fontSize: '0.9em', padding: '5px 12px', backgroundColor: '#2980b9', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' },  
   toolBtn: { fontSize: '0.9em', padding: '5px 12px', backgroundColor: '#fff', color: '#333', border: '1px solid #ccc', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' },
   fileName: { fontSize: '0.85em', color: '#333', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '200px' },
   backBtn: { fontSize: '0.9em', padding: '5px 15px', backgroundColor: '#7f8c8d', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', marginRight: '10px' },
@@ -99,8 +100,8 @@ const styles: { [key: string]: React.CSSProperties } = {
   remarksBox: { border: '1px solid #000', padding: '5px', minHeight: '120px', height: 'auto', marginTop: '2px', width: '100%', whiteSpace: 'pre-wrap', fontSize: '0.8em', lineHeight: '1.2', wordBreak: 'break-all' },
 };
 
-export const EditScreen: React.FC<EditScreenProps> = ({isReadOnly, creatorName, onCopyCreate, data, setters, masterData, onBack, onSave }) => {
-  const { id, date, estimateNo, searchBranchId, searchStaffId, projectName, customerName, discount, remarks, rows, attachedFile, isSubmitted } = data;
+export const EditScreen: React.FC<EditScreenProps> = ({isReadOnly, creatorName, onCopyCreate, onTransitionToNew, data, setters, masterData, onBack, onSave }) => {
+  const { id, date, estimateNo, searchBranchId, searchStaffId, projectName, customerName, discount, remarks, rows, attachedFile, attachedFilePath, isSubmitted } = data;
   const { setSearchBranchId, setSearchStaffId, setProjectName, setCustomerName, setDiscount, setRemarks, setRows, setAttachedFile, setIsSubmitted } = setters;
   const { branches, staffs, customers } = masterData;
 
@@ -318,6 +319,15 @@ export const EditScreen: React.FC<EditScreenProps> = ({isReadOnly, creatorName, 
     return rIndex >= minR && rIndex <= maxR && cIdx >= minC && cIdx <= maxC;
   };
 
+  const getDisplayFileName = () => {
+    if(attachedFile) return attachedFile.name;
+    if(attachedFilePath){
+      const parts = attachedFilePath.split('_');
+      return parts.length>1 ? parts.slice(1).join('_') : attachedFilePath;
+    }
+    return '(未選択)';
+  }
+
   const calculateMargin = (price: number, cost: number) => (!price ? 0 : ((price - cost) / price) * 100);
   const handleInputChange = (id: number, field: keyof Row, value: string | number) => { setRows(rows.map(row => row.id === id ? { ...row, [field]: value } : row)); };
   const handleNumberChange = (id: number, field: keyof Row, rawValue: string) => { const cleanValue = toHalfWidth(rawValue).replace(/,/g, ''); if (cleanValue === '') { setRows(rows.map(row => row.id === id ? { ...row, [field]: 0 } : row)); } else if (/^-?\d*$/.test(cleanValue)) { setRows(rows.map(row => row.id === id ? { ...row, [field]: Number(cleanValue) } : row)); } };
@@ -410,7 +420,7 @@ export const EditScreen: React.FC<EditScreenProps> = ({isReadOnly, creatorName, 
             </div>
           </div>
           <div style={styles.attachArea}>
-             {/* ★修正: 左側にコピー・貼り付けボタンを追加 */}
+             {/* 左側コピー・貼り付けボタンエリア */}
              <div style={{display:'flex', gap:'5px', marginRight:'15px', borderRight:'1px solid #ccc', paddingRight:'15px'}}>
                <button onClick={handleManualCopy} style={styles.toolBtn} title="選択範囲をコピー">📄 コピー</button>
                {!isReadOnly && (
@@ -421,14 +431,14 @@ export const EditScreen: React.FC<EditScreenProps> = ({isReadOnly, creatorName, 
              {/* ファイル添付エリア */}
              <input type="file" ref={fileInputRef} style={{display:'none'}} onChange={(e) => e.target.files && setAttachedFile(e.target.files[0])} disabled={isReadOnly} />
              <button style={{...styles.attachBtn, opacity: isReadOnly ? 0.5 : 1}} onClick={() => fileInputRef.current?.click()} disabled={isReadOnly}>📎 仕入見積添付</button>
-             <span style={styles.fileName}>{attachedFile ? attachedFile.name : '(未選択)'}</span>
+             <span style={styles.fileName}>{getDisplayFileName()}</span>
           </div>
         </div>
 
         <div style={styles.gridContainer}>
           <table style={styles.gridTable}>
             <thead>
-              <tr><th style={{...styles.gridTh, width: '30px'}}></th><th style={{...styles.gridTh, width: '60px'}}>種別</th><th style={{...styles.gridTh, width: '70px'}}>CD</th><th style={{...styles.gridTh, minWidth: '250px'}}>品名・規格</th><th style={{...styles.gridTh, width: '50px'}}>数量</th><th style={{...styles.gridTh, width: '70px', color:'#ff9999'}}>仕切価</th><th style={{...styles.gridTh, width: '70px', color:'#99ccff'}}>単価</th><th style={{...styles.gridTh, width: '80px', color:'#27ae60'}}>金額</th><th style={{...styles.gridTh, width: '50px'}}>利益率%</th></tr>
+              <tr><th style={{...styles.gridTh, width: '30px'}}></th><th style={{...styles.gridTh, width: '60px'}}>種別</th><th style={{...styles.gridTh, width: '75px'}}>商品CD</th><th style={{...styles.gridTh, minWidth: '250px'}}>品名・規格</th><th style={{...styles.gridTh, width: '50px'}}>数量</th><th style={{...styles.gridTh, width: '70px', color:'#ff9999'}}>仕切価</th><th style={{...styles.gridTh, width: '70px', color:'#99ccff'}}>単価</th><th style={{...styles.gridTh, width: '80px', color:'#27ae60'}}>金額</th><th style={{...styles.gridTh, width: '50px'}}>利益率%</th></tr>
             </thead>
             <tbody>
               {rows.map((row: Row, rIndex: number) => {
@@ -461,9 +471,7 @@ export const EditScreen: React.FC<EditScreenProps> = ({isReadOnly, creatorName, 
               })}
             </tbody>
           </table>
-        </div>
-
-        {/* ★修正: コピーボタンは上に移動したため、ここには行追加ボタンのみ残す */}
+        </div>        
         <div style={{marginTop:'10px', marginBottom:'10px', padding:'0 10px', display:'flex', gap:'10px'}}>
           {!isReadOnly && (
             <button onClick={addRow} style={{flex:1, padding:'10px', backgroundColor:'#ecf0f1', border:'1px dashed #bdc3c7', cursor:'pointer', color:'#7f8c8d'}}>＋ 行を追加</button>
@@ -478,10 +486,16 @@ export const EditScreen: React.FC<EditScreenProps> = ({isReadOnly, creatorName, 
         <div style={styles.leftFooter}>
           <div style={styles.footerBtns}>
             {!isReadOnly ? (
+              id?(
+                // 編集モード（IDあり）-> 「修正保存」と「新規作成」
               <>
                 <button style={styles.footerActionBtn} onClick={() => onSave(true)}>修正保存</button>
-                <button style={{...styles.footerActionBtn, backgroundColor:'#3498db'}} onClick={() => onSave(false)}>新規保存</button>
+                <button style={{...styles.footerActionBtn, backgroundColor:'#8e44ad'}} onClick={onTransitionToNew}>新規作成</button>
               </>
+              ):(
+                // 新規作成モード（IDなし）-> 「新規保存」のみ
+                <button style={{...styles.footerActionBtn, backgroundColor:'#3498db'}} onClick={() => onSave(false)}>新規保存</button>
+              )
             ) : (
                 <button style={{...styles.footerActionBtn, backgroundColor:'#8e44ad'}} onClick={onCopyCreate}>📝 この内容をコピーして新規作成</button>
             )}

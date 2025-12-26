@@ -73,10 +73,9 @@ function MainApp({ currentUser, onLogout }: { currentUser: User, onLogout: () =>
   const [projectName, setProjectName] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [discount, setDiscount] = useState<number | string>('');
-  const [remarks, setRemarks] = useState('');
-  
-  // ★添付ファイルの実体(Fileオブジェクト)を管理するState
+  const [remarks, setRemarks] = useState('');  
   const [attachedFile, setAttachedFile] = useState<File | null>(null);
+  const [currentAttachedFilePath,setCurrentAttachedFilePath] = useState<string | null>(null);
   
   const [rows, setRows] = useState(createInitialRows());
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -122,10 +121,8 @@ function MainApp({ currentUser, onLogout }: { currentUser: User, onLogout: () =>
   const resetForm = () => {
     setCurrentId(null);
     setEditingCreatorId(null);
-    setDate(getTodayString());
-    
-    setEstimateNo('(自動採番)');
-    
+    setDate(getTodayString());    
+    setEstimateNo('(自動採番)');    
     setSearchBranchId(currentUser.branchId || 9443);
     setSearchStaffId(0);
     setProjectName('');
@@ -133,10 +130,11 @@ function MainApp({ currentUser, onLogout }: { currentUser: User, onLogout: () =>
     setDiscount('');
     setRemarks('');
     setAttachedFile(null);
+    setCurrentAttachedFilePath(null);
     setRows(createInitialRows());
     setCustomers([]);
     setIsSubmitted(false);
-    setEditingCreatorName('');
+    setEditingCreatorName('');    
   };
 
   // 参照中のデータをコピーして新規作成モードへ移行
@@ -161,9 +159,22 @@ function MainApp({ currentUser, onLogout }: { currentUser: User, onLogout: () =>
 
     // 3. 添付ファイルのリセット（ファイルはコピーしない仕様）
     setAttachedFile(null);
+    setCurrentAttachedFilePath(null);
 
     alert('新規作成モードに切り替えました。\n内容を編集して「新規保存」してください。');
   };
+
+  const handleTransitionToNew = () => {
+    if(!window.confirm('現在入力中の内容をコピーして、新規作成モードに移行しますか？\n(添付ファイルはクリアされます)')) return;
+    setCurrentId(null);
+    setEstimateNo('(自動採番)');
+    setEditingCreatorId(currentUser.id);
+    setEditingCreatorName(currentUser.name);
+    setIsSubmitted(false);
+    setAttachedFile(null);
+    setCurrentAttachedFilePath(null);
+    alert('新規作成モードに切り替えました。\n内容を確認し「新規保存」してください。');
+  }
 
   const handleSelectQuotation = async (id: number) => {
     try {
@@ -182,10 +193,9 @@ function MainApp({ currentUser, onLogout }: { currentUser: User, onLogout: () =>
         setProjectName(q.projectName);
         setRemarks(q.remarks);        
         setDiscount(q.discountAmount !== undefined && q.discountAmount !== null ? q.discountAmount : '');
-        setIsSubmitted(q.isSubmitted);
-        
-        // ★修正: 既存データを開くときは、新規アップロードファイル選択状態をリセット
-        setAttachedFile(null); 
+        setIsSubmitted(q.isSubmitted);        
+        setAttachedFile(null);
+        setCurrentAttachedFilePath(q.attachedFilePath); 
 
         const uiRows: Row[] = q.items.map((item, i) => ({
           id: i + 1,
@@ -212,7 +222,7 @@ function MainApp({ currentUser, onLogout }: { currentUser: User, onLogout: () =>
     setMode('EDIT');
   };
 
-  // ★修正: FormDataを使った送信処理に変更
+  // ★FormDataを使った送信処理
   const handleSave = async (isUpdate: boolean) => {
     try {
       // 1. 必須チェック
@@ -286,8 +296,7 @@ function MainApp({ currentUser, onLogout }: { currentUser: User, onLogout: () =>
         totalCost: costTotal,
         totalProfit: profit,
         profitRate: parseFloat(profitRate.toFixed(2)),
-        grandTotal: grandTotal,
-        // ファイル実体はFormDataで送るので、JSONデータ内はnullにする
+        grandTotal: grandTotal,       
         attachedFilePath: null, 
         items: itemsPayload as QuotationItemDto[]
       };
@@ -374,8 +383,9 @@ function MainApp({ currentUser, onLogout }: { currentUser: User, onLogout: () =>
       currentUser={currentUser}
       isReadOnly={isReadOnly}
       onCopyCreate={handleCopyCreate}
+      onTransitionToNew={handleTransitionToNew}
       creatorName={editingCreatorName || currentUser.name}
-      data={{ id: currentId, date, estimateNo, searchBranchId, searchStaffId, projectName, customerName, discount, remarks, rows, attachedFile, isSubmitted }}
+      data={{ id: currentId, date, estimateNo, searchBranchId, searchStaffId, projectName, customerName, discount, remarks, rows, attachedFile, attachedFilePath: currentAttachedFilePath, isSubmitted }}
       setters={{ 
         setSearchBranchId: handleBranchChange, 
         setSearchStaffId: handleStaffChange, 
