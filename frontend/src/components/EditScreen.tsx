@@ -344,7 +344,7 @@ export const EditScreen: React.FC<EditScreenProps> = ({isReadOnly, creatorName, 
   const pages = getPages();
   let globalItemIndex = 0;
 
-  const renderCell = (rIndex: number, row: Row, colKey: keyof Row, content: React.ReactNode, extraStyle: React.CSSProperties = {}) => { 
+  const renderCell = (rIndex: number, _row: Row, colKey: keyof Row, content: React.ReactNode, extraStyle: React.CSSProperties = {}) => { 
     const isSelected = isInSelection(rIndex, colKey as string);
     const cellStyle = { ...styles.gridTd, ...extraStyle, backgroundColor: isSelected ? '#e6f7ff' : (extraStyle.backgroundColor || 'white'), border: isSelected ? '1px double #3498db' : styles.gridTd.border };
     return ( 
