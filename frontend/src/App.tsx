@@ -369,7 +369,8 @@ function MainApp({ currentUser, onLogout }: { currentUser: User, onLogout: () =>
 
   if (mode === 'SEARCH') {
     return (
-      <QuotationList 
+      <QuotationList
+        key={currentUser.id} 
         currentUser={currentUser}
         onLogout={onLogout}
         onSelectQuotation={handleSelectQuotation}

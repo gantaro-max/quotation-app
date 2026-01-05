@@ -104,7 +104,8 @@ class QuotationRepositoryTest {
                 "INSERT INTO quotations (estimate_no, customer_name, created_at) VALUES ('Q2', 'Beta Inc', NOW())");
 
         // 部分一致検索
-        List<QuotationDto> results = quotationRepository.search("Alpha", null, null);
+        // 引数を5つに修正: customerName, customerCode, salesBranchName, projectName, estimateNo
+        List<QuotationDto> results = quotationRepository.search("Alpha", null, null, null, null);
 
         assertThat(results).hasSize(1);
         assertThat(results.get(0).getCustomerName()).isEqualTo("Alpha Corp");
