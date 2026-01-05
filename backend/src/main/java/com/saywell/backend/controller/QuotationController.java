@@ -26,7 +26,7 @@ import com.saywell.backend.service.QuotationService;
 import lombok.RequiredArgsConstructor;
 
 /**
- * 見積Controller GlobalExceptionHandlerの導入により try-catch を削除しシンプル化しました。
+ * 見積Controller
  */
 @RestController
 @RequestMapping("/api/quotations")
@@ -116,15 +116,20 @@ public class QuotationController {
     }
 
     /**
-     * 見積検索（全ユーザーが参照可能） GET /api/quotations/search
+     * 見積検索（全ユーザーが参照可能） GET /api/quotations/search 引数に customerCode, salesBranchName を追加
      */
     @GetMapping("/search")
     public ResponseEntity<ApiResponse<List<QuotationDto>>> search(
             @RequestParam(required = false) String customerName,
+            @RequestParam(required = false) String customerCode,
+            @RequestParam(required = false) String salesBranchName,
             @RequestParam(required = false) String projectName,
             @RequestParam(required = false) String estimateNo) {
 
-        List<QuotationDto> list = quotationService.search(customerName, projectName, estimateNo);
+        System.out.println("Search Params: code=" + customerCode + ", name=" + customerName);
+
+        List<QuotationDto> list = quotationService.search(customerName, customerCode,
+                salesBranchName, projectName, estimateNo);
         return ResponseEntity.ok(ApiResponse.success(list));
     }
 
@@ -147,8 +152,6 @@ public class QuotationController {
                 String filePath = saveFile(file);
                 dto.setAttachedFilePath(filePath);
             }
-            // ※ファイルがnullの場合は「変更なし」として、Service側で既存パスを維持するロジックが必要です
-            // (Service側の実装によりますが、MyBatisのUpdateで <if test="attachedFilePath != null"> になっていればOK)
 
             QuotationDto result = quotationService.update(id, dto, currentUserId);
             return ResponseEntity.ok(ApiResponse.success(result));

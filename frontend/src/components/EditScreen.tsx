@@ -52,7 +52,8 @@ const ROWS_OTHER_PAGES = 40;
 // スタイル定義
 const styles: { [key: string]: React.CSSProperties } = {
   container: { display: 'flex', height: '100vh', overflow: 'hidden', fontFamily: '"Hiragino Kaku Gothic ProN", "Meiryo", sans-serif', backgroundColor: '#555', padding: '10px', boxSizing: 'border-box', gap: '15px' },
-  leftPanel: { width: '55%', flexShrink: 0, backgroundColor: '#f4f6f9', borderRadius: '4px', display: 'flex', flexDirection: 'column', height: '100%', boxSizing: 'border-box', boxShadow: '0 0 10px rgba(0,0,0,0.3)' },
+  // ★変更: 幅を50%にして、右パネルとの合計が100%を超えないように調整
+  leftPanel: { width: '50%', flexShrink: 0, backgroundColor: '#f4f6f9', borderRadius: '4px', display: 'flex', flexDirection: 'column', height: '100%', boxSizing: 'border-box', boxShadow: '0 0 10px rgba(0,0,0,0.3)' },
   leftHeader: { padding: '15px', backgroundColor: 'white', borderBottom: '1px solid #ddd', borderTopLeftRadius: '4px', borderTopRightRadius: '4px', flexShrink: 0 },
   filterRow: { display: 'flex', gap: '10px', marginBottom: '10px' },
   filterGroup: { flex: 1, display: 'flex', flexDirection: 'column' },
@@ -83,8 +84,9 @@ const styles: { [key: string]: React.CSSProperties } = {
   typeSelect: { width: '100%', border: 'none', padding: '8px', fontSize: '0.9em', cursor: 'pointer', outline: 'none', background: 'transparent' },
   profitCell: { padding: '0 8px', textAlign: 'right', verticalAlign: 'middle' },
   amountCell: { padding: '0 8px', textAlign: 'right', verticalAlign: 'middle', fontWeight: 'bold', backgroundColor: '#f9f9f9', color: '#333' },
-  rightPanel: { width: '45%', flexShrink: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '0 10px' },
-  pageContainer: { width: '210mm', minHeight: '297mm', backgroundColor: 'white', padding: '10mm 15mm', boxSizing: 'border-box', marginBottom: '20px', position: 'relative', fontFamily: '"MS Mincho", "Hiragino Mincho ProN", serif', color: '#333', transform: 'scale(0.85)', transformOrigin: 'top center', boxShadow: '0 5px 15px rgba(0,0,0,0.5)', marginTop: '20px' },
+  // ★変更: width固定をやめ、flex: 1 で残りのスペースを埋めるように変更（はみ出し防止）
+  rightPanel: { flex: 1, minWidth: 0, flexShrink: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '0 10px' },
+  pageContainer: { width: '210mm', minHeight: '297mm', backgroundColor: 'white', padding: '10mm 15mm', boxSizing: 'border-box', marginBottom: '20px', position: 'relative', fontFamily: '"MS Mincho", "Hiragino Mincho ProN", serif', color: '#333', transformOrigin: 'top center', boxShadow: '0 5px 15px rgba(0,0,0,0.5)', marginTop: '20px' },
   headerTitle: { textAlign: 'center', fontSize: '1.5em', textDecoration: 'underline', marginBottom: '5px', letterSpacing: '0.3em' },
   topSection: { display: 'flex', justifyContent: 'space-between', marginBottom: '10px', alignItems: 'flex-start' },
   customerInfo: { width: '58%' },
@@ -111,6 +113,8 @@ export const EditScreen: React.FC<EditScreenProps> = ({isReadOnly, creatorName, 
   
   const [selection, setSelection] = useState<SelectionRange | null>(null);
   const [isSelecting, setIsSelecting] = useState(false);
+  
+  const [previewScale, setPreviewScale] = useState(0.75);
 
   const selectedBranch = branches.find(b => b.id === searchBranchId);
 
@@ -195,7 +199,6 @@ export const EditScreen: React.FC<EditScreenProps> = ({isReadOnly, creatorName, 
     setSelection(null);
   };
 
-  // ペースト処理のロジック（共通化）
   const processPaste = (text: string, startRowIndex: number, startColKey: string) => {
     const lines = text.split(/\r\n|\n|\r/).filter(l => l !== '');
     if (lines.length === 0) return;
@@ -223,7 +226,6 @@ export const EditScreen: React.FC<EditScreenProps> = ({isReadOnly, creatorName, 
     setRows(newRows);
   };
 
-  // Ctrl+V 用ハンドラ
   const handlePaste = (e: React.ClipboardEvent, startRowIndex: number, startColKey: string) => {
     const text = e.clipboardData.getData('text');
     if (!text.includes('\t') && !text.includes('\n')) return;
@@ -254,7 +256,6 @@ export const EditScreen: React.FC<EditScreenProps> = ({isReadOnly, creatorName, 
     return copyText;
   };
 
-  // Ctrl+C 用ハンドラ
   const handleCopy = (e: React.ClipboardEvent) => {
     if (!selection) return; 
     e.preventDefault();
@@ -264,7 +265,6 @@ export const EditScreen: React.FC<EditScreenProps> = ({isReadOnly, creatorName, 
     }
   };
 
-  // ボタンからのコピー
   const handleManualCopy = async () => {
     const text = getSelectedText();
     if (!text) {
@@ -279,7 +279,6 @@ export const EditScreen: React.FC<EditScreenProps> = ({isReadOnly, creatorName, 
     }
   };
 
-  // ★追加: ボタンからの貼り付け
   const handleManualPaste = async () => {
     if (isReadOnly) return;
     if (!selection) {
@@ -289,17 +288,13 @@ export const EditScreen: React.FC<EditScreenProps> = ({isReadOnly, creatorName, 
     try {
         const text = await navigator.clipboard.readText();
         if (!text) return;
-        
-        // 選択範囲の開始位置（左上）を基準にする
         const { start, end } = selection;
         const minR = Math.min(start.r, end.r);
         const startCIdx = COL_ORDER.indexOf(start.c as keyof Row);
         const endCIdx = COL_ORDER.indexOf(end.c as keyof Row);
         const minCIdx = Math.min(startCIdx, endCIdx);
         const startColKey = COL_ORDER[minCIdx] as string;
-
         processPaste(text, minR, startColKey);
-
     } catch (err) {
         console.error('貼り付けに失敗しました:', err);
         alert('貼り付けに失敗しました(ブラウザの許可が必要な場合があります)');
@@ -420,15 +415,12 @@ export const EditScreen: React.FC<EditScreenProps> = ({isReadOnly, creatorName, 
             </div>
           </div>
           <div style={styles.attachArea}>
-             {/* 左側コピー・貼り付けボタンエリア */}
              <div style={{display:'flex', gap:'5px', marginRight:'15px', borderRight:'1px solid #ccc', paddingRight:'15px'}}>
                <button onClick={handleManualCopy} style={styles.toolBtn} title="選択範囲をコピー">📄 コピー</button>
                {!isReadOnly && (
                  <button onClick={handleManualPaste} style={styles.toolBtn} title="現在のセルに貼り付け">📋 貼付</button>
                )}
              </div>
-
-             {/* ファイル添付エリア */}
              <input type="file" ref={fileInputRef} style={{display:'none'}} onChange={(e) => e.target.files && setAttachedFile(e.target.files[0])} disabled={isReadOnly} />
              <button style={{...styles.attachBtn, opacity: isReadOnly ? 0.5 : 1}} onClick={() => fileInputRef.current?.click()} disabled={isReadOnly}>📎 仕入見積添付</button>
              <span style={styles.fileName}>{getDisplayFileName()}</span>
@@ -510,6 +502,14 @@ export const EditScreen: React.FC<EditScreenProps> = ({isReadOnly, creatorName, 
       </div>
 
       <div style={styles.rightPanel} className="right-panel-print-full">
+        {/* ★変更: ズーム操作バーを中央寄せに変更 */}
+        <div style={{width:'100%', padding:'10px', display:'flex', justifyContent:'center', alignItems:'center', gap:'10px'}}>
+            <span style={{fontSize:'0.9em', fontWeight:'bold', color:'white'}}>表示倍率:</span>
+            <button onClick={() => setPreviewScale(s => Math.max(0.5, s - 0.1))} style={{cursor:'pointer', width:'30px', fontWeight:'bold'}}>-</button>
+            <span style={{color:'white', minWidth:'40px', textAlign:'center'}}>{Math.round(previewScale * 100)}%</span>
+            <button onClick={() => setPreviewScale(s => Math.min(2.0, s + 0.1))} style={{cursor:'pointer', width:'30px', fontWeight:'bold'}}>+</button>
+        </div>
+
         {pages.map((pageRows, pageIndex) => {
           const isFirstPage = pageIndex === 0; const isLastPage = pageIndex === pages.length - 1;
           const currentStaffName = creatorName;
@@ -518,7 +518,11 @@ export const EditScreen: React.FC<EditScreenProps> = ({isReadOnly, creatorName, 
           const currentBranchPhone = selectedBranch?.phone || '';
 
           return (
-            <div key={pageIndex} style={styles.pageContainer} className="page-container-print">
+            <div key={pageIndex} style={{
+                ...styles.pageContainer, 
+                transform: `scale(${previewScale})`,
+                marginBottom: `${(previewScale - 1) * 297}mm`
+            }} className="page-container-print">
               {isFirstPage ? (
                 <>
                   <h1 style={styles.headerTitle}>御 見 積 書</h1>

@@ -185,20 +185,32 @@
             q.created_at        AS q_created_at,
             
             u.name  AS u_name,
-            s.name  AS s_name
-        FROM quotations q
+            s.name  AS s_name,
+            b.name  AS b_name  FROM quotations q
         LEFT JOIN users u        ON q.created_by_user_id = u.id
         LEFT JOIN sales_staffs s ON q.sales_staff_id = s.id
-        WHERE 1=1
+        LEFT JOIN branches b     ON q.sales_branch_id = b.id WHERE 1=1
+        
         <if test="customerName != null and customerName != ''">
             AND q.customer_name LIKE CONCAT('%', #{customerName}, '%')
         </if>
-        <if test="projectName != null and projectName != ''">
-            AND q.project_name LIKE CONCAT('%', #{projectName}, '%')
+        
+        <if test="customerCode != null and customerCode != ''">
+            AND CAST(q.customer_id AS CHAR) LIKE CONCAT(#{customerCode}, '%')
         </if>
+        
+        <if test="salesBranchName != null and salesBranchName != ''">
+            AND b.name LIKE CONCAT(#{salesBranchName}, '%')
+        </if>
+
+        <if test="projectName != null and projectName != ''">
+            AND q.project_name LIKE CONCAT(#{projectName}, '%')
+        </if>
+        
         <if test="estimateNo != null and estimateNo != ''">
             AND q.estimate_no LIKE CONCAT('%', #{estimateNo}, '%')
         </if>
+        
         ORDER BY q.created_at DESC
     </select>
 

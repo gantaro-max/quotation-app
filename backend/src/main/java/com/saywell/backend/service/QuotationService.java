@@ -41,8 +41,10 @@ public class QuotationService {
      * 見積検索 (一覧画面用)
      */
     @Transactional(readOnly = true)
-    public List<QuotationDto> search(String customerName, String projectName, String estimateNo) {
-        return quotationRepository.search(customerName, projectName, estimateNo);
+    public List<QuotationDto> search(String customerName, String customerCode,
+            String salesBranchName, String projectName, String estimateNo) {
+        return quotationRepository.search(customerName, customerCode, salesBranchName, projectName,
+                estimateNo);
     }
 
     /**

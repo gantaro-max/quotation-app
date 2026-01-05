@@ -69,8 +69,11 @@ class QuotationServiceTest {
     @DisplayName("search: 正常系")
     void testSearch_Success() {
         String customerName = "テスト";
-        when(quotationRepository.search(customerName, null, null)).thenReturn(List.of(testDto));
-        List<QuotationDto> result = quotationService.search(customerName, null, null);
+        // MockとService呼び出しの両方で引数を5つに修正
+        when(quotationRepository.search(customerName, null, null, null, null))
+                .thenReturn(List.of(testDto));
+
+        List<QuotationDto> result = quotationService.search(customerName, null, null, null, null);
         assertEquals(1, result.size());
     }
 
