@@ -52,7 +52,6 @@ const ROWS_OTHER_PAGES = 40;
 // スタイル定義
 const styles: { [key: string]: React.CSSProperties } = {
   container: { display: 'flex', height: '100vh', overflow: 'hidden', fontFamily: '"Hiragino Kaku Gothic ProN", "Meiryo", sans-serif', backgroundColor: '#555', padding: '10px', boxSizing: 'border-box', gap: '15px' },
-  // ★変更: 幅を50%にして、右パネルとの合計が100%を超えないように調整
   leftPanel: { width: '50%', flexShrink: 0, backgroundColor: '#f4f6f9', borderRadius: '4px', display: 'flex', flexDirection: 'column', height: '100%', boxSizing: 'border-box', boxShadow: '0 0 10px rgba(0,0,0,0.3)' },
   leftHeader: { padding: '15px', backgroundColor: 'white', borderBottom: '1px solid #ddd', borderTopLeftRadius: '4px', borderTopRightRadius: '4px', flexShrink: 0 },
   filterRow: { display: 'flex', gap: '10px', marginBottom: '10px' },
@@ -85,7 +84,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   profitCell: { padding: '0 8px', textAlign: 'right', verticalAlign: 'middle' },
   amountCell: { padding: '0 8px', textAlign: 'right', verticalAlign: 'middle', fontWeight: 'bold', backgroundColor: '#f9f9f9', color: '#333' },
   // ★変更: width固定をやめ、flex: 1 で残りのスペースを埋めるように変更（はみ出し防止）
-  rightPanel: { flex: 1, minWidth: 0, flexShrink: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '0 10px' },
+  rightPanel: { flex:1, minWidth: 0, flexShrink: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '0 10px' },
   pageContainer: { width: '210mm', minHeight: '297mm', backgroundColor: 'white', padding: '10mm 15mm', boxSizing: 'border-box', marginBottom: '20px', position: 'relative', fontFamily: '"MS Mincho", "Hiragino Mincho ProN", serif', color: '#333', transformOrigin: 'top center', boxShadow: '0 5px 15px rgba(0,0,0,0.5)', marginTop: '20px' },
   headerTitle: { textAlign: 'center', fontSize: '1.5em', textDecoration: 'underline', marginBottom: '5px', letterSpacing: '0.3em' },
   topSection: { display: 'flex', justifyContent: 'space-between', marginBottom: '10px', alignItems: 'flex-start' },
@@ -503,11 +502,11 @@ export const EditScreen: React.FC<EditScreenProps> = ({isReadOnly, creatorName, 
 
       <div style={styles.rightPanel} className="right-panel-print-full">
         {/* ★変更: ズーム操作バーを中央寄せに変更 */}
-        <div style={{width:'100%', padding:'10px', display:'flex', justifyContent:'center', alignItems:'center', gap:'10px'}}>
-            <span style={{fontSize:'0.9em', fontWeight:'bold', color:'white'}}>表示倍率:</span>
+        <div style={{width:'100%', padding:'10px', display:'flex', justifyContent:'left', alignItems:'center', gap:'10px'}}>
+            <span style={{fontSize:'0.8em', fontWeight:'bold', color:'white'}}></span>
             <button onClick={() => setPreviewScale(s => Math.max(0.5, s - 0.1))} style={{cursor:'pointer', width:'30px', fontWeight:'bold'}}>-</button>
             <span style={{color:'white', minWidth:'40px', textAlign:'center'}}>{Math.round(previewScale * 100)}%</span>
-            <button onClick={() => setPreviewScale(s => Math.min(2.0, s + 0.1))} style={{cursor:'pointer', width:'30px', fontWeight:'bold'}}>+</button>
+            <button onClick={() => setPreviewScale(s => Math.min(1.15, s + 0.1))} style={{cursor:'pointer', width:'30px', fontWeight:'bold'}}>+</button>
         </div>
 
         {pages.map((pageRows, pageIndex) => {
