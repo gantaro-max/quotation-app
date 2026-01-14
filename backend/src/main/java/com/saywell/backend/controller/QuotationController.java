@@ -22,6 +22,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.saywell.backend.dto.ApiResponse;
 import com.saywell.backend.dto.QuotationCopyRequest;
 import com.saywell.backend.dto.QuotationDto;
+import com.saywell.backend.entity.QuotationItem;
+import com.saywell.backend.service.OcrService;
 import com.saywell.backend.service.QuotationService;
 import lombok.RequiredArgsConstructor;
 
@@ -35,10 +37,13 @@ public class QuotationController {
 
     private final QuotationService quotationService;
 
+    private final OcrService ocrService;
+
     private final ObjectMapper objectMapper; // JSON変換用
 
     // 保存先ディレクトリ (プロジェクト直下の uploads フォルダ)
     private static final String UPLOAD_DIR = System.getProperty("user.dir") + "/uploads/";
+
 
     // --- ファイル保存用のヘルパーメソッド ---
     private String saveFile(MultipartFile file) throws IOException {
@@ -184,5 +189,22 @@ public class QuotationController {
                 request.getNewUserDepartmentName());
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success("見積をコピーして新規作成しました", dto));
+    }
+
+    // =========================================================================
+    // OCR解析用エンドポイント
+    // =========================================================================
+    @PostMapping(value = "/ocr", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ApiResponse<List<QuotationItem>>> analyzeOcr(
+            @RequestPart("file") MultipartFile file) {
+        try {
+            // Serviceを呼んで解析結果(明細リスト)を取得
+            List<QuotationItem> items = ocrService.analyzeFile(file);
+            return ResponseEntity.ok(ApiResponse.success(items));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("OCR解析失敗: " + e.getMessage()));
+        }
     }
 }
