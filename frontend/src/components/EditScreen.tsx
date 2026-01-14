@@ -42,6 +42,12 @@ interface EditScreenProps {
   onSave: (isUpdate: boolean) => void;
 }
 
+interface OcrResponseItem {
+  itemName: string;
+  quantity: number;
+  unitPrice: number;
+}
+
 interface Point { r: number; c: string; }
 interface SelectionRange { start: Point; end: Point; }
 
@@ -360,6 +366,81 @@ export const EditScreen: React.FC<EditScreenProps> = ({isReadOnly, creatorName, 
     onCopy: (e: React.ClipboardEvent) => handleCopy(e),
   });
 
+  // ===========================================================================
+  // OCR解析ハンドラ (ここから)
+  // ===========================================================================
+  const handleOcrAnalysis = async () => {
+    // 1. ファイル添付チェック
+    if (!attachedFile) {
+      alert("先にファイルを添付してください（PDFまたは画像）");
+      return;
+    }
+    
+    // 2. 上書き確認
+    if (!window.confirm("添付ファイルの内容を読み取って明細に反映しますか？\n（現在の明細行は上書きされます）")) {
+      return;
+    }
+
+    try {
+      // 3. API送信準備
+      const formData = new FormData();
+      formData.append("file", attachedFile);
+
+      // 4. API呼び出し
+      const res = await fetch("/api/quotations/ocr", {
+        method: "POST",
+        body: formData,
+      });
+      const json = await res.json();
+
+      if (json.success) {
+        const items = json.data as OcrResponseItem[];
+        
+        if (!items || items.length === 0) {
+          alert("読み取れる明細が見つかりませんでした。");
+          return;
+        }
+
+        // 5. 行データ(Row型)への変換
+        // BackendのDTO(GeminiPart等)から画面用のRow型へマッピング
+        const newRows: Row[] = items.map((item, index) => ({
+          id: index + 1,
+          dbId: null, // 新規扱いなのでnull
+          type: "normal",
+          code: "", // コードは読み取れないので空
+          manufacturer: "",
+          item: item.itemName || "",    // 品名
+          quantity: item.quantity || 0, // 数量
+          cost: 0,                      // 原価は読み取れないので0
+          price: item.unitPrice || 0,   // 単価
+        }));
+
+        // 6. 20行になるまで空行を追加 (画面レイアウト維持のため)
+        while (newRows.length < 20) {
+          newRows.push({
+            id: newRows.length + 1,
+            type: "normal",
+            code: "",
+            manufacturer: "",
+            item: "",
+            quantity: 0,
+            cost: 0,
+            price: 0,
+          });
+        }
+        
+        // 7. 画面に反映
+        setRows(newRows);
+        alert("読み取りが完了しました");
+      } else {
+        alert("OCR解析エラー: " + (json.message || "不明なエラー"));
+      }
+    } catch (e) {
+      console.error(e);
+      alert("通信エラーが発生しました");
+    }
+  };
+
   return (
     <div style={styles.container}>
       <style>{`@media print { @page { margin: 0; size: A4; } body { background-color: white !important; -webkit-print-color-adjust: exact; } .left-panel-print-hidden { display: none !important; } .right-panel-print-full { width: 100% !important; padding: 0 !important; background-color: white !important; overflow: visible !important; display: block !important; } .page-container-print { transform: none !important; margin: 0 !important; padding: 15mm 20mm !important; box-shadow: none !important; page-break-after: always; width: 100% !important; } .page-container-print:last-child { page-break-after: auto; } .no-print { display: none !important; } }`}</style>
@@ -422,6 +503,30 @@ export const EditScreen: React.FC<EditScreenProps> = ({isReadOnly, creatorName, 
              </div>
              <input type="file" ref={fileInputRef} style={{display:'none'}} onChange={(e) => e.target.files && setAttachedFile(e.target.files[0])} disabled={isReadOnly} />
              <button style={{...styles.attachBtn, opacity: isReadOnly ? 0.5 : 1}} onClick={() => fileInputRef.current?.click()} disabled={isReadOnly}>📎 仕入見積添付</button>
+             
+             <button // OCR自動読取ボタン
+               onClick={handleOcrAnalysis} 
+               disabled={isReadOnly || !attachedFile} // ファイルがないと押せないように制御
+               style={{
+                 fontSize: '0.9em', 
+                 padding: '5px 12px', 
+                 backgroundColor: '#8e44ad', // 紫色で目立たせる
+                 color: 'white', 
+                 border: 'none', 
+                 borderRadius: '4px', 
+                 cursor: (isReadOnly || !attachedFile) ? 'not-allowed' : 'pointer',
+                 opacity: (isReadOnly || !attachedFile) ? 0.5 : 1, // 無効時は薄くする
+                 marginLeft: '5px',
+                 fontWeight: 'bold',
+                 display: 'flex',       // アイコンと文字を並べるため
+                 alignItems: 'center',
+                 gap: '5px'
+               }}
+               title="添付ファイルから明細を自動読み取りします"
+             >
+               🤖 自動読取
+             </button>
+
              <span style={styles.fileName}>{getDisplayFileName()}</span>
           </div>
         </div>
@@ -501,7 +606,7 @@ export const EditScreen: React.FC<EditScreenProps> = ({isReadOnly, creatorName, 
       </div>
 
       <div style={styles.rightPanel} className="right-panel-print-full">
-        {/* ★変更: ズーム操作バーを中央寄せに変更 */}
+        {/* ズーム操作バーを中央寄せに変更 */}
         <div style={{width:'100%', padding:'10px', display:'flex', justifyContent:'left', alignItems:'center', gap:'10px'}}>
             <span style={{fontSize:'0.8em', fontWeight:'bold', color:'white'}}></span>
             <button onClick={() => setPreviewScale(s => Math.max(0.5, s - 0.1))} style={{cursor:'pointer', width:'30px', fontWeight:'bold'}}>-</button>
