@@ -1,6 +1,7 @@
 package com.quotationapp.backend.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -139,5 +140,72 @@ class QuotationRepositoryTest {
         // 確認
         items = quotationRepository.findItemsByQuotationId(quotationId);
         assertThat(items).isEmpty();
+    }
+
+    @Test
+    @DisplayName("値引き額(discountAmount)が正しく保存・取得できること (0とNULLの区別)")
+    void testDiscountAmount() {
+        // ケース1: 値引きあり
+        Quotation q1 = new Quotation();
+        q1.setEstimateNo("Q-DISCOUNT-1");
+        q1.setCustomerName("C1");
+        q1.setCreatedByUserId(1);
+        q1.setDiscountAmount(new BigDecimal("5000.00"));
+        quotationRepository.insert(q1);
+
+        Quotation fetched1 = quotationRepository.findById(q1.getId());
+        // BigDecimal比較は isEqualByComparingTo が安全
+        assertThat(fetched1.getDiscountAmount()).isEqualByComparingTo("5000");
+
+        // ケース2: 値引きなし（NULL）
+        Quotation q2 = new Quotation();
+        q2.setEstimateNo("Q-DISCOUNT-2");
+        q2.setCustomerName("C2");
+        q2.setCreatedByUserId(1);
+        q2.setDiscountAmount(null); // NULL保存
+        quotationRepository.insert(q2);
+
+        Quotation fetched2 = quotationRepository.findById(q2.getId());
+        assertThat(fetched2.getDiscountAmount()).isNull(); // NULLであることを確認
+    }
+
+    @Test
+    @DisplayName("update: 更新ができること")
+    void testUpdate() {
+        // 1. 新規作成
+        Quotation q = new Quotation();
+        q.setEstimateNo("Q-UPD-TEST");
+        q.setCustomerName("Before");
+        q.setCreatedByUserId(1);
+        quotationRepository.insert(q);
+        Long id = q.getId();
+
+        // 2. 更新実行
+        q.setCustomerName("After");
+        int count = quotationRepository.update(q);
+
+        // 3. 検証
+        assertThat(count).isEqualTo(1);
+        Quotation updated = quotationRepository.findById(id);
+        assertThat(updated.getCustomerName()).isEqualTo("After");
+    }
+
+    @Test
+    @DisplayName("delete: 削除ができること")
+    void testDelete() {
+        // 1. 新規作成
+        Quotation q = new Quotation();
+        q.setEstimateNo("Q-DEL-TEST");
+        q.setCustomerName("Del");
+        q.setCreatedByUserId(1);
+        quotationRepository.insert(q);
+        Long id = q.getId();
+
+        // 2. 削除実行
+        int count = quotationRepository.delete(id, 1); // 正しい作成者ID
+
+        // 3. 検証
+        assertThat(count).isEqualTo(1);
+        assertThat(quotationRepository.findById(id)).isNull();
     }
 }

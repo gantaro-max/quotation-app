@@ -53,7 +53,7 @@ export interface QuotationDto {
   issueDate: string;
   remarks: string;
   totalAmount: number;
-  discountAmount?: number;
+  discountAmount?: number | null;
   totalCost: number;
   totalProfit: number;
   profitRate: number;

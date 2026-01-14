@@ -28,9 +28,18 @@ public class OcrService {
             "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=";
 
     private final ObjectMapper objectMapper;
+    private final HttpClient httpClient; // ★追加: フィールドにする
 
+    // コンストラクタで初期化（テスト時はここを差し替えられる）
     public OcrService(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
+        this.httpClient = HttpClient.newHttpClient();
+    }
+
+    // テスト用コンストラクタ（Mockを渡す用）
+    public OcrService(ObjectMapper objectMapper, HttpClient httpClient) {
+        this.objectMapper = objectMapper;
+        this.httpClient = httpClient;
     }
 
     public List<QuotationItem> analyzeFile(MultipartFile file)
@@ -55,13 +64,13 @@ public class OcrService {
 
         String apiUrl = String.format(GEMINI_API_URL_TEMPLATE, apiKey);
 
-        HttpClient client = HttpClient.newHttpClient();
-
+        // フィールドの httpClient を使用
         HttpRequest request = HttpRequest.newBuilder().uri(URI.create(apiUrl))
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(jsonBody)).build();
 
-        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+        HttpResponse<String> response =
+                httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
         if (response.statusCode() != 200) {
             throw new RuntimeException(
@@ -69,16 +78,16 @@ public class OcrService {
         }
 
         return parseGeminiResponse(response.body());
-
     }
 
+
+    // ここでは analyzeFile 経由でテストするため private のまま
     private List<QuotationItem> parseGeminiResponse(String responseBody) {
-
         List<QuotationItem> items = new ArrayList<>();
-
         try {
             JsonNode root = objectMapper.readTree(responseBody);
-            String text = root.path("candidats").get(0).path("content").path("parts").get(0)
+
+            String text = root.path("candidates").get(0).path("content").path("parts").get(0)
                     .path("text").asText();
             text = text.replaceAll("^```json", "").replaceAll("```$", "").trim();
 
@@ -89,18 +98,13 @@ public class OcrService {
                     item.setItemName(node.path("itemName").asText(""));
                     item.setQuantity(node.path("quantity").decimalValue());
                     item.setUnitPrice(node.path("unitPrice").decimalValue());
-                    item.setRowType("nomal");
+                    item.setRowType("normal"); // 修正済み
                     items.add(item);
                 }
             }
-
-
-
         } catch (Exception e) {
             e.printStackTrace();
         }
         return items;
-
     }
-
 }
