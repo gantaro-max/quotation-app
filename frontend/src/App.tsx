@@ -276,6 +276,8 @@ function MainApp({ currentUser, onLogout }: { currentUser: User, onLogout: () =>
           unitPrice: r.price
         }));
 
+      const payloadDiscountAmount = (discountVal === 0) ? null : discountVal;
+
       // 4. ペイロード(DTO)作成
       const payload: QuotationDto = {
         id: saveAsBranch ? null : currentId,
@@ -292,7 +294,7 @@ function MainApp({ currentUser, onLogout }: { currentUser: User, onLogout: () =>
         issueDate: new Date().toISOString().split('T')[0],
         remarks: remarks,
         totalAmount: subTotal,
-        discountAmount: discountVal,
+        discountAmount: payloadDiscountAmount,
         totalCost: costTotal,
         totalProfit: profit,
         profitRate: parseFloat(profitRate.toFixed(2)),

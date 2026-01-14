@@ -17,13 +17,17 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.bean.override.mockito.MockitoBean; // Boot 3.4系の場合
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.saywell.backend.dto.QuotationCopyRequest;
 import com.saywell.backend.dto.QuotationDto;
+import com.saywell.backend.entity.QuotationItem;
 import com.saywell.backend.exception.ResourceNotFoundException;
 import com.saywell.backend.exception.UnauthorizedException;
+import com.saywell.backend.service.OcrService;
 import com.saywell.backend.service.QuotationService;
 
 @WebMvcTest(QuotationController.class)
@@ -36,6 +40,9 @@ class QuotationControllerTest {
 
         @MockitoBean // Spring Boot 3.4以降 (3.3以前なら @MockBean)
         private QuotationService quotationService;
+
+        @MockitoBean
+        private OcrService ocrService;
 
         @Autowired
         private ObjectMapper objectMapper;
@@ -113,5 +120,55 @@ class QuotationControllerTest {
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(req)))
                                 .andExpect(status().isCreated());
+        }
+
+        @Test
+        @DisplayName("POST /api/quotations/ocr: 正常系")
+        void testAnalyzeOcr_Success() throws Exception {
+                MockMultipartFile file = new MockMultipartFile("file", "inv.pdf", "application/pdf",
+                                "dummy".getBytes());
+
+                QuotationItem item = new QuotationItem();
+                item.setItemName("OCR Item");
+                item.setQuantity(BigDecimal.ONE);
+                item.setUnitPrice(BigDecimal.valueOf(100));
+
+                when(ocrService.analyzeFile(any())).thenReturn(List.of(item));
+
+                mockMvc.perform(MockMvcRequestBuilders.multipart("/api/quotations/ocr").file(file))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.success").value(true))
+                                .andExpect(jsonPath("$.data[0].itemName").value("OCR Item"));
+        }
+
+        @Test
+        @DisplayName("GET /api/quotations/search: 正常系")
+        void testSearch_Success() throws Exception {
+                when(quotationService.search(any(), any(), any(), any(), any()))
+                                .thenReturn(List.of(testDto));
+
+                mockMvc.perform(get("/api/quotations/search").param("customerName", "test"))
+                                .andExpect(status().isOk()).andExpect(jsonPath("$.data").isArray());
+        }
+
+        @Test
+        @DisplayName("PUT /api/quotations/{id}: 正常系")
+        void testUpdate_Success() throws Exception {
+                when(quotationService.update(eq(1L), any(QuotationDto.class), eq(1)))
+                                .thenReturn(testDto);
+
+                mockMvc.perform(put("/api/quotations/1").param("currentUserId", "1")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(testDto)))
+                                .andExpect(status().isOk());
+        }
+
+        @Test
+        @DisplayName("DELETE /api/quotations/{id}: 正常系")
+        void testDelete_Success() throws Exception {
+                // deleteはvoidなのでwhen不要(またはdoNothing)
+
+                mockMvc.perform(MockMvcRequestBuilders.delete("/api/quotations/1")
+                                .param("currentUserId", "1")).andExpect(status().isOk());
         }
 }
