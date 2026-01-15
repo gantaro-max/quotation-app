@@ -88,8 +88,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   smallInput: { width: '100%', height: '100%', border: 'none', padding: '8px', boxSizing: 'border-box', outline: 'none', fontSize: '1em', background: 'transparent' },
   typeSelect: { width: '100%', border: 'none', padding: '8px', fontSize: '0.9em', cursor: 'pointer', outline: 'none', background: 'transparent' },
   profitCell: { padding: '0 8px', textAlign: 'right', verticalAlign: 'middle' },
-  amountCell: { padding: '0 8px', textAlign: 'right', verticalAlign: 'middle', fontWeight: 'bold', backgroundColor: '#f9f9f9', color: '#333' },
-  // ★変更: width固定をやめ、flex: 1 で残りのスペースを埋めるように変更（はみ出し防止）
+  amountCell: { padding: '0 8px', textAlign: 'right', verticalAlign: 'middle', fontWeight: 'bold', backgroundColor: '#f9f9f9', color: '#333' },  
   rightPanel: { flex:1, minWidth: 0, flexShrink: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '0 10px' },
   pageContainer: { width: '210mm', minHeight: '297mm', backgroundColor: 'white', padding: '10mm 15mm', boxSizing: 'border-box', marginBottom: '20px', position: 'relative', fontFamily: '"MS Mincho", "Hiragino Mincho ProN", serif', color: '#333', transformOrigin: 'top center', boxShadow: '0 5px 15px rgba(0,0,0,0.5)', marginTop: '20px' },
   headerTitle: { textAlign: 'center', fontSize: '1.5em', textDecoration: 'underline', marginBottom: '5px', letterSpacing: '0.3em' },
