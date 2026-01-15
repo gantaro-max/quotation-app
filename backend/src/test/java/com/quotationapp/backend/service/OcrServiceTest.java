@@ -26,80 +26,84 @@ import com.quotationapp.backend.entity.QuotationItem;
 @DisplayName("OcrServiceテスト")
 class OcrServiceTest {
 
-    private OcrService ocrService;
+  private OcrService ocrService;
 
-    @Mock
-    private HttpClient httpClient;
+  @Mock
+  private HttpClient httpClient;
 
-    @Mock
-    private HttpResponse<String> httpResponse;
+  @Mock
+  private HttpResponse<String> httpResponse;
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
+  private final ObjectMapper objectMapper = new ObjectMapper();
 
-    @BeforeEach
-    void setUp() {
-        // テスト用コンストラクタを使用してMockを注入
-        ocrService = new OcrService(objectMapper, httpClient);
-    }
+  @BeforeEach
+  void setUp() {
+    // テスト用コンストラクタを使用してMockを注入
+    ocrService = new OcrService(objectMapper, httpClient);
+  }
 
-    @Test
-    @DisplayName("analyzeFile: 正常なJSONレスポンスを解析できること")
-    void testAnalyzeFile_Success() throws IOException, InterruptedException {
-        // 1. 準備: Gemini APIが返してくるであろうJSON文字列
-        String mockJsonResponse =
-                """
-                        {
-                          "candidates": [
-                            {
-                              "content": {
-                                "parts": [
-                                  {
-                                    "text": "```json\\n[ {\\"itemName\\": \\"テスト商品A\\", \\"quantity\\": 10, \\"unitPrice\\": 500}, {\\"itemName\\": \\"テスト商品B\\", \\"quantity\\": 1, \\"unitPrice\\": 10000} ]\\n```"
-                                  }
-                                ]
-                              }
-                            }
-                          ]
-                        }
-                        """;
+  @Test
+  @DisplayName("analyzeFile: 正常なJSONレスポンスを解析できること")
+  void testAnalyzeFile_Success() throws IOException, InterruptedException {
+    // 1. 準備: Gemini APIが返してくるであろうJSON文字列
+    // APIからは "unitPrice" として返ってくるが、Service内でこれを "costPrice" に割り当てる仕様に変更済み
+    String mockJsonResponse =
+        """
+            {
+              "candidates": [
+                {
+                  "content": {
+                    "parts": [
+                      {
+                        "text": "```json\\n[ {\\"itemName\\": \\"テスト商品A\\", \\"quantity\\": 10, \\"unitPrice\\": 500}, {\\"itemName\\": \\"テスト商品B\\", \\"quantity\\": 1, \\"unitPrice\\": 10000} ]\\n```"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+            """;
 
-        // Mockの設定
-        when(httpResponse.statusCode()).thenReturn(200);
-        when(httpResponse.body()).thenReturn(mockJsonResponse);
-        when(httpClient.send(any(HttpRequest.class),
-                ArgumentMatchers.<HttpResponse.BodyHandler<String>>any())).thenReturn(httpResponse);
+    // Mockの設定
+    when(httpResponse.statusCode()).thenReturn(200);
+    when(httpResponse.body()).thenReturn(mockJsonResponse);
+    when(httpClient.send(any(HttpRequest.class),
+        ArgumentMatchers.<HttpResponse.BodyHandler<String>>any())).thenReturn(httpResponse);
 
-        // テスト用ファイル
-        MockMultipartFile file = new MockMultipartFile("file", "test.pdf", "application/pdf",
-                "dummy content".getBytes());
+    // テスト用ファイル
+    MockMultipartFile file =
+        new MockMultipartFile("file", "test.pdf", "application/pdf", "dummy content".getBytes());
 
-        // 2. 実行
-        List<QuotationItem> result = ocrService.analyzeFile(file);
+    // 2. 実行
+    List<QuotationItem> result = ocrService.analyzeFile(file);
 
-        // 3. 検証
-        assertNotNull(result);
-        assertEquals(2, result.size());
+    // 3. 検証
+    assertNotNull(result);
+    assertEquals(2, result.size());
 
-        QuotationItem item1 = result.get(0);
-        assertEquals("テスト商品A", item1.getItemName());
-        assertEquals(BigDecimal.valueOf(10), item1.getQuantity());
-        assertEquals(BigDecimal.valueOf(500), item1.getUnitPrice());
-        assertEquals("normal", item1.getRowType());
-    }
+    QuotationItem item1 = result.get(0);
+    assertEquals("テスト商品A", item1.getItemName());
+    assertEquals(BigDecimal.valueOf(10), item1.getQuantity());
 
-    @Test
-    @DisplayName("analyzeFile: APIエラー時は例外を投げること")
-    void testAnalyzeFile_ApiError() throws IOException, InterruptedException {
-        // Mockの設定 (500エラー)
-        when(httpResponse.statusCode()).thenReturn(500);
-        when(httpResponse.body()).thenReturn("Internal Server Error");
-        when(httpClient.send(any(HttpRequest.class),
-                ArgumentMatchers.<HttpResponse.BodyHandler<String>>any())).thenReturn(httpResponse);
+    // ★修正: 仕入単価(costPrice)にマッピングされていることを確認する
+    assertEquals(BigDecimal.valueOf(500), item1.getCostPrice());
 
-        MockMultipartFile file =
-                new MockMultipartFile("file", "test.pdf", "application/pdf", "dummy".getBytes());
+    assertEquals("normal", item1.getRowType());
+  }
 
-        // 実行 & 検証
-        assertThrows(RuntimeException.class, () -> ocrService.analyzeFile(file));
-    }
+  @Test
+  @DisplayName("analyzeFile: APIエラー時は例外を投げること")
+  void testAnalyzeFile_ApiError() throws IOException, InterruptedException {
+    // Mockの設定 (500エラー)
+    when(httpResponse.statusCode()).thenReturn(500);
+    when(httpResponse.body()).thenReturn("Internal Server Error");
+    when(httpClient.send(any(HttpRequest.class),
+        ArgumentMatchers.<HttpResponse.BodyHandler<String>>any())).thenReturn(httpResponse);
+
+    MockMultipartFile file =
+        new MockMultipartFile("file", "test.pdf", "application/pdf", "dummy".getBytes());
+
+    // 実行 & 検証
+    assertThrows(RuntimeException.class, () -> ocrService.analyzeFile(file));
+  }
 }
