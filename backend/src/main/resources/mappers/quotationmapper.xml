@@ -241,10 +241,11 @@
             total_amount, discount_amount, total_cost, total_profit, profit_rate, grand_total, issue_date, remarks, attached_file_path,
             created_at, updated_at
         ) VALUES (
-            #{estimateNo}, #{version}, #{isSubmitted}, #{createdByUserId},
-            #{userDepartmentName}, #{salesBranchId}, #{salesStaffId},
-            #{customerId}, #{customerName}, #{projectName},
-            #{totalAmount}, #{discountAmount}, #{totalCost}, #{totalProfit}, #{profitRate}, #{grandTotal}, #{issueDate}, #{remarks}, #{attachedFilePath},
+            #{estimateNo, jdbcType=VARCHAR}, #{version}, #{isSubmitted, jdbcType=BOOLEAN}, #{createdByUserId},
+            #{userDepartmentName, jdbcType=VARCHAR}, #{salesBranchId, jdbcType=INTEGER}, #{salesStaffId, jdbcType=INTEGER},
+            #{customerId, jdbcType=INTEGER}, #{customerName, jdbcType=VARCHAR}, #{projectName, jdbcType=VARCHAR},
+            #{totalAmount, jdbcType=DECIMAL}, #{discountAmount, jdbcType=DECIMAL}, #{totalCost, jdbcType=DECIMAL}, #{totalProfit, jdbcType=DECIMAL}, #{profitRate, jdbcType=DECIMAL}, #{grandTotal, jdbcType=DECIMAL}, 
+            #{issueDate, jdbcType=DATE}, #{remarks, jdbcType=VARCHAR}, #{attachedFilePath, jdbcType=VARCHAR},
             NOW(), NOW()
         )
     </insert>
@@ -252,25 +253,26 @@
     <update id="update">
         UPDATE quotations
         SET
-            estimate_no = #{estimateNo},
+            estimate_no = #{estimateNo, jdbcType=VARCHAR},
             version = #{version},
-            is_submitted = #{isSubmitted},
-            sales_branch_id = #{salesBranchId},
-            sales_staff_id = #{salesStaffId},
-            customer_id = #{customerId},
-            customer_name = #{customerName},
-            project_name = #{projectName},
-            total_amount = #{totalAmount},
+            is_submitted = #{isSubmitted, jdbcType=BOOLEAN},
+            sales_branch_id = #{salesBranchId, jdbcType=INTEGER},
+            sales_staff_id = #{salesStaffId, jdbcType=INTEGER},
+            customer_id = #{customerId, jdbcType=INTEGER},
+            customer_name = #{customerName, jdbcType=VARCHAR},
+            project_name = #{projectName, jdbcType=VARCHAR},
+            total_amount = #{totalAmount, jdbcType=DECIMAL},
             
-            discount_amount = #{discountAmount}, total_cost = #{totalCost},
-            total_profit = #{totalProfit},
-            profit_rate = #{profitRate},
-            grand_total = #{grandTotal},
-            issue_date = #{issueDate},
-            remarks = #{remarks},
+            discount_amount = #{discountAmount, jdbcType=DECIMAL}, 
+            total_cost = #{totalCost, jdbcType=DECIMAL},
+            total_profit = #{totalProfit, jdbcType=DECIMAL},
+            profit_rate = #{profitRate, jdbcType=DECIMAL},
+            grand_total = #{grandTotal, jdbcType=DECIMAL},
+            issue_date = #{issueDate, jdbcType=DATE},
+            remarks = #{remarks, jdbcType=VARCHAR},
             
             <if test="attachedFilePath != null">
-                attached_file_path = #{attachedFilePath},
+                attached_file_path = #{attachedFilePath, jdbcType=VARCHAR},
             </if>
             
             updated_at = NOW()
@@ -294,8 +296,8 @@
         ) VALUES
         <foreach collection="items" item="item" separator=",">
             (
-                #{item.quotationId}, #{item.rowOrder}, #{item.rowType}, #{item.itemCode}, #{item.itemName},
-                #{item.manufacturer}, #{item.quantity}, #{item.costPrice}, #{item.unitPrice}
+                #{item.quotationId}, #{item.rowOrder}, #{item.rowType, jdbcType=VARCHAR}, #{item.itemCode, jdbcType=VARCHAR}, #{item.itemName, jdbcType=VARCHAR},
+                #{item.manufacturer, jdbcType=VARCHAR}, #{item.quantity, jdbcType=DECIMAL}, #{item.costPrice, jdbcType=DECIMAL}, #{item.unitPrice, jdbcType=DECIMAL}
             )
         </foreach>
     </insert>

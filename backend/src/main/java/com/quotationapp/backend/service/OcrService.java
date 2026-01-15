@@ -25,11 +25,12 @@ public class OcrService {
     @Value("${gemini.api.key}")
     private String apiKey;
 
+    // 単独アプリで成功したモデル名を使用
     private static final String GEMINI_API_URL_TEMPLATE =
             "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=";
 
     private final ObjectMapper objectMapper;
-    private final HttpClient httpClient; // ★追加: フィールドにする
+    private final HttpClient httpClient;
 
     @Autowired
     public OcrService(ObjectMapper objectMapper) {
@@ -37,7 +38,7 @@ public class OcrService {
         this.httpClient = HttpClient.newHttpClient();
     }
 
-    // テスト用コンストラクタ（Mockを渡す用）
+    // テスト用コンストラクタ
     public OcrService(ObjectMapper objectMapper, HttpClient httpClient) {
         this.objectMapper = objectMapper;
         this.httpClient = httpClient;
@@ -47,14 +48,27 @@ public class OcrService {
             throws IOException, InterruptedException {
 
         String base64Data = Base64.getEncoder().encodeToString(file.getBytes());
-        String mimeType = file.getContentType();
 
+        // MIMEタイプが取得できない、またはoctet-streamの場合はPDFとみなす
+        String mimeType = file.getContentType();
+        if (mimeType == null || "application/octet-stream".equals(mimeType)) {
+            mimeType = "application/pdf";
+        }
+
+        System.out.println("OCR Request: " + file.getOriginalFilename() + " (" + mimeType + ")");
+
+        // プロンプト：JSON配列のみを強く要求
         String promptText = """
                 この見積書(PDF/画像)から、明細行[品名、数量、単価(単価がない場合、金額)]を抽出してください。
-                出力形式: JSONフォーマットの配列のみ。
-                各オブジェクトのキーは "itemName", "quantity", "unitPrice" としてください。
-                数量と単価は数値で、円マークやカンマは除外してください。
-                Markdownタグ(```json等)は含めず、純粋なJSON文字列のみを返してください。
+
+                【出力ルール】
+                1. 結果は必ず JSONの配列形式 `[...]` のみにしてください。
+                2. 余計な挨拶やMarkdownタグ（```json 等）は極力含めないでください。
+                3. 各オブジェクトのキーは "itemName", "quantity", "unitPrice" としてください。
+                4. 数量と単価は数値型にしてください（円マークやカンマは除去）。
+
+                例:
+                [{"itemName":"商品A", "quantity":1, "unitPrice":1000}]
                 """;
 
         GeminiRequest requestPayload = new GeminiRequest(List.of(new GeminiContent(
@@ -62,10 +76,8 @@ public class OcrService {
                         new GeminiPart(promptText, null)))));
 
         String jsonBody = objectMapper.writeValueAsString(requestPayload);
-
         String apiUrl = String.format(GEMINI_API_URL_TEMPLATE, apiKey);
 
-        // フィールドの httpClient を使用
         HttpRequest request = HttpRequest.newBuilder().uri(URI.create(apiUrl))
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(jsonBody)).build();
@@ -73,38 +85,60 @@ public class OcrService {
         HttpResponse<String> response =
                 httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
+        // デバッグ用ログ出力
         if (response.statusCode() != 200) {
+            System.err.println("Gemini API Error Status: " + response.statusCode());
+            System.err.println("Gemini API Error Body: " + response.body());
             throw new RuntimeException(
                     "Gemini API Error: " + response.statusCode() + " " + response.body());
         }
 
+        // 成功時もレスポンスをログに出して確認できるようにする
+        // System.out.println("Gemini Response: " + response.body());
+
         return parseGeminiResponse(response.body());
     }
 
-
-    // ここでは analyzeFile 経由でテストするため private のまま
     private List<QuotationItem> parseGeminiResponse(String responseBody) {
         List<QuotationItem> items = new ArrayList<>();
         try {
             JsonNode root = objectMapper.readTree(responseBody);
 
+            // テキスト部分を取得
             String text = root.path("candidates").get(0).path("content").path("parts").get(0)
                     .path("text").asText();
-            text = text.replaceAll("^```json", "").replaceAll("```$", "").trim();
 
-            JsonNode arrayNode = objectMapper.readTree(text);
+            // ★修正: 正規表現ではなく、最初の '[' から 最後の ']' までを切り出す（最も確実）
+            int start = text.indexOf("[");
+            int end = text.lastIndexOf("]");
+
+            if (start == -1 || end == -1) {
+                System.err.println("JSON配列が見つかりませんでした: " + text);
+                return items; // 空リストを返す
+            }
+
+            String jsonArrayStr = text.substring(start, end + 1);
+
+            JsonNode arrayNode = objectMapper.readTree(jsonArrayStr);
             if (arrayNode.isArray()) {
                 for (JsonNode node : arrayNode) {
                     QuotationItem item = new QuotationItem();
                     item.setItemName(node.path("itemName").asText(""));
-                    item.setQuantity(node.path("quantity").decimalValue());
-                    item.setUnitPrice(node.path("unitPrice").decimalValue());
-                    item.setRowType("normal"); // 修正済み
+                    // 数値変換時にnull安全にする
+                    if (node.has("quantity") && !node.get("quantity").isNull()) {
+                        item.setQuantity(node.path("quantity").decimalValue());
+                    }
+                    if (node.has("unitPrice") && !node.get("unitPrice").isNull()) {
+                        item.setUnitPrice(node.path("unitPrice").decimalValue());
+                    }
+                    item.setRowType("normal");
                     items.add(item);
                 }
             }
         } catch (Exception e) {
             e.printStackTrace();
+            // パースエラー時も空リストなどを返してアプリを落とさないようにする
+            System.err.println("Parse Error: " + e.getMessage());
         }
         return items;
     }
