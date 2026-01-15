@@ -23,6 +23,8 @@ import com.quotationapp.backend.dto.ApiResponse;
 import com.quotationapp.backend.dto.QuotationCopyRequest;
 import com.quotationapp.backend.dto.QuotationDto;
 import com.quotationapp.backend.entity.QuotationItem;
+import com.quotationapp.backend.exception.ResourceNotFoundException; // 追加
+import com.quotationapp.backend.exception.UnauthorizedException; // 追加
 import com.quotationapp.backend.service.OcrService;
 import com.quotationapp.backend.service.QuotationService;
 import lombok.RequiredArgsConstructor;
@@ -161,6 +163,9 @@ public class QuotationController {
             QuotationDto result = quotationService.update(id, dto, currentUserId);
             return ResponseEntity.ok(ApiResponse.success(result));
 
+            // ★追加: 権限エラーなどはGlobalExceptionHandlerに任せるために再スローする
+        } catch (UnauthorizedException | ResourceNotFoundException e) {
+            throw e;
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.badRequest().body(ApiResponse.error("更新失敗: " + e.getMessage()));
