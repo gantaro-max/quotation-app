@@ -15,10 +15,11 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean; // SpringBoot 3.x用
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
+// ★修正: MockBean ではなく MockitoBean を使用
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.quotationapp.backend.dto.QuotationCopyRequest;
@@ -37,10 +38,11 @@ class QuotationControllerTest {
         @Autowired
         private MockMvc mockMvc;
 
-        @MockBean
+        // ★修正: Spring Boot 3.4以降の推奨アノテーションに変更
+        @MockitoBean
         private QuotationService quotationService;
 
-        @MockBean
+        @MockitoBean
         private OcrService ocrService;
 
         @Autowired
@@ -100,7 +102,7 @@ class QuotationControllerTest {
         @Test
         @DisplayName("PUT /api/quotations/{id}: 正常系")
         void testUpdate_Success() throws Exception {
-                // any()を使って引数を緩める
+                // any()を使って引数条件を緩め、確実にモックを動作させる
                 when(quotationService.update(any(), any(QuotationDto.class), any()))
                                 .thenReturn(testDto);
 
@@ -117,7 +119,7 @@ class QuotationControllerTest {
         @Test
         @DisplayName("PUT /api/quotations/{id}: 権限エラー")
         void testUpdate_Forbidden() throws Exception {
-                // ★修正: any()を使って確実に例外をスローさせる
+                // ★修正: any()を使って引数を問わず例外を投げるように設定
                 when(quotationService.update(any(), any(QuotationDto.class), any()))
                                 .thenThrow(new UnauthorizedException("Forbidden"));
 
@@ -129,21 +131,6 @@ class QuotationControllerTest {
                         request.setMethod("PUT");
                         return request;
                 }).param("currentUserId", "999")).andExpect(status().isForbidden());
-        }
-
-        @Test
-        @DisplayName("POST /api/quotations/{id}/copy: 正常系")
-        void testCopy_Success() throws Exception {
-                QuotationCopyRequest req = new QuotationCopyRequest();
-                req.setNewCreatedByUserId(2);
-                req.setNewUserDepartmentName("新部署");
-
-                when(quotationService.copy(any(), any(), any())).thenReturn(testDto);
-
-                mockMvc.perform(post("/api/quotations/1/copy")
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content(objectMapper.writeValueAsString(req)))
-                                .andExpect(status().isCreated());
         }
 
         @Test
@@ -164,13 +151,18 @@ class QuotationControllerTest {
         }
 
         @Test
-        @DisplayName("GET /api/quotations/search: 正常系")
-        void testSearch_Success() throws Exception {
-                when(quotationService.search(any(), any(), any(), any(), any()))
-                                .thenReturn(List.of(testDto));
+        @DisplayName("POST /api/quotations/{id}/copy: 正常系")
+        void testCopy_Success() throws Exception {
+                QuotationCopyRequest req = new QuotationCopyRequest();
+                req.setNewCreatedByUserId(2);
 
-                mockMvc.perform(get("/api/quotations/search").param("customerName", "test"))
-                                .andExpect(status().isOk()).andExpect(jsonPath("$.data").isArray());
+                // 引数条件を緩める
+                when(quotationService.copy(any(), any(), any())).thenReturn(testDto);
+
+                mockMvc.perform(post("/api/quotations/1/copy")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(req)))
+                                .andExpect(status().isCreated());
         }
 
         @Test
@@ -178,5 +170,15 @@ class QuotationControllerTest {
         void testDelete_Success() throws Exception {
                 mockMvc.perform(delete("/api/quotations/1").param("currentUserId", "1"))
                                 .andExpect(status().isOk());
+        }
+
+        @Test
+        @DisplayName("GET /api/quotations/search: 正常系")
+        void testSearch_Success() throws Exception {
+                when(quotationService.search(any(), any(), any(), any(), any()))
+                                .thenReturn(List.of(testDto));
+
+                mockMvc.perform(get("/api/quotations/search").param("customerName", "test"))
+                                .andExpect(status().isOk()).andExpect(jsonPath("$.data").isArray());
         }
 }
