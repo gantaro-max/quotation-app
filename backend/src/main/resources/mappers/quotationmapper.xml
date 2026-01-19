@@ -1,7 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<!DOCTYPE mapper
-  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
-  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 
 <mapper namespace="com.saywell.backend.repository.QuotationRepository">
 
@@ -18,6 +16,7 @@
         <result property="customerName" column="customer_name" />
         <result property="projectName" column="project_name" />
         <result property="totalAmount" column="total_amount" />
+        <result property="discountAmount" column="discount_amount" /> 
         <result property="totalCost" column="total_cost" />
         <result property="totalProfit" column="total_profit" />
         <result property="profitRate" column="profit_rate" />
@@ -42,7 +41,6 @@
         <result property="unitPrice" column="unit_price" />
     </resultMap>
 
-
     <resultMap id="QuotationDtoMap" type="com.saywell.backend.dto.QuotationDto">
         <id property="id" column="q_id" />
         <result property="estimateNo" column="q_estimate_no" />
@@ -50,6 +48,8 @@
         <result property="isSubmitted" column="q_is_submitted" />
         
         <result property="createdByUserId" column="q_created_by_user_id" />
+        <result property="createdByUserName" column="u_name" />
+
         <result property="salesBranchId" column="q_sales_branch_id" />
         <result property="salesStaffId" column="q_sales_staff_id" />
         <result property="customerId" column="q_customer_id" />
@@ -60,17 +60,22 @@
         <result property="remarks" column="q_remarks" />
         
         <result property="totalAmount" column="q_total_amount" />
+        
+        <result property="discountAmount" column="q_discount_amount" />
+
         <result property="totalCost" column="q_total_cost" />
         <result property="totalProfit" column="q_total_profit" />
         <result property="profitRate" column="q_profit_rate" />
         <result property="grandTotal" column="q_grand_total" />
+        
+        <result property="attachedFilePath" column="q_attached_file_path" />
         
         <result property="createdAt" column="q_created_at" />
         <result property="updatedAt" column="q_updated_at" />
 
         <association property="createdByUser" javaType="com.saywell.backend.dto.UserDto">
             <id property="id" column="u_id"/>
-            <result property="name" column="u_name"/>
+            <result property="name" column="u_name"/>           
         </association>
 
         <association property="salesBranch" javaType="com.saywell.backend.dto.BranchDto">
@@ -104,7 +109,6 @@
         </collection>
     </resultMap>
 
-
     <select id="findById" resultMap="QuotationResultMap">
         SELECT * FROM quotations WHERE id = #{id}
     </select>
@@ -121,35 +125,34 @@
             q.customer_id       AS q_customer_id,
             q.customer_name     AS q_customer_name,
             q.project_name      AS q_project_name,
-            q.total_amount      AS q_total_amount,
+            q.total_amount      AS q_total_amount,           
+            q.discount_amount   AS q_discount_amount,
             q.total_cost        AS q_total_cost,
             q.total_profit      AS q_total_profit,
             q.profit_rate       AS q_profit_rate,
             q.grand_total       AS q_grand_total,
+            
+            q.attached_file_path AS q_attached_file_path,
+            
             q.issue_date        AS q_issue_date,
             q.remarks           AS q_remarks,
             q.created_at        AS q_created_at,
             q.updated_at        AS q_updated_at,
 
-            -- 作成者
             u.id    AS u_id,
             u.name  AS u_name,
 
-            -- 営業所
             b.id      AS b_id,
             b.name    AS b_name,
             b.address AS b_address,
             b.phone   AS b_phone,
 
-            -- 担当者
             s.id    AS s_id,
             s.name  AS s_name,
 
-            -- 顧客 (マスタ側)
             c.id    AS c_id,
             c.name  AS c_name,
 
-            -- 明細
             i.id            AS i_id,
             i.row_order     AS i_row_order,
             i.row_type      AS i_row_type,
@@ -181,21 +184,33 @@
             q.grand_total       AS q_grand_total,
             q.created_at        AS q_created_at,
             
-            u.name  AS u_name,  -- 作成者名を表示したい場合
-            s.name  AS s_name   -- 担当者名を表示したい場合
-        FROM quotations q
+            u.name  AS u_name,
+            s.name  AS s_name,
+            b.name  AS b_name  FROM quotations q
         LEFT JOIN users u        ON q.created_by_user_id = u.id
         LEFT JOIN sales_staffs s ON q.sales_staff_id = s.id
-        WHERE 1=1
+        LEFT JOIN branches b     ON q.sales_branch_id = b.id WHERE 1=1
+        
         <if test="customerName != null and customerName != ''">
             AND q.customer_name LIKE CONCAT('%', #{customerName}, '%')
         </if>
-        <if test="projectName != null and projectName != ''">
-            AND q.project_name LIKE CONCAT('%', #{projectName}, '%')
+        
+        <if test="customerCode != null and customerCode != ''">
+            AND CAST(q.customer_id AS CHAR) LIKE CONCAT(#{customerCode}, '%')
         </if>
+        
+        <if test="salesBranchName != null and salesBranchName != ''">
+            AND b.name LIKE CONCAT(#{salesBranchName}, '%')
+        </if>
+
+        <if test="projectName != null and projectName != ''">
+            AND q.project_name LIKE CONCAT(#{projectName}, '%')
+        </if>
+        
         <if test="estimateNo != null and estimateNo != ''">
             AND q.estimate_no LIKE CONCAT('%', #{estimateNo}, '%')
         </if>
+        
         ORDER BY q.created_at DESC
     </select>
 
@@ -223,15 +238,14 @@
             estimate_no, version, is_submitted, created_by_user_id,
             user_department_name, sales_branch_id, sales_staff_id,
             customer_id, customer_name, project_name,
-            total_amount, total_cost, total_profit, profit_rate, grand_total,
-            issue_date, remarks, attached_file_path,
+            total_amount, discount_amount, total_cost, total_profit, profit_rate, grand_total, issue_date, remarks, attached_file_path,
             created_at, updated_at
         ) VALUES (
-            #{estimateNo}, #{version}, #{isSubmitted}, #{createdByUserId},
-            #{userDepartmentName}, #{salesBranchId}, #{salesStaffId},
-            #{customerId}, #{customerName}, #{projectName},
-            #{totalAmount}, #{totalCost}, #{totalProfit}, #{profitRate}, #{grandTotal},
-            #{issueDate}, #{remarks}, #{attachedFilePath},
+            #{estimateNo, jdbcType=VARCHAR}, #{version}, #{isSubmitted, jdbcType=BOOLEAN}, #{createdByUserId},
+            #{userDepartmentName, jdbcType=VARCHAR}, #{salesBranchId, jdbcType=INTEGER}, #{salesStaffId, jdbcType=INTEGER},
+            #{customerId, jdbcType=INTEGER}, #{customerName, jdbcType=VARCHAR}, #{projectName, jdbcType=VARCHAR},
+            #{totalAmount, jdbcType=DECIMAL}, #{discountAmount, jdbcType=DECIMAL}, #{totalCost, jdbcType=DECIMAL}, #{totalProfit, jdbcType=DECIMAL}, #{profitRate, jdbcType=DECIMAL}, #{grandTotal, jdbcType=DECIMAL}, 
+            #{issueDate, jdbcType=DATE}, #{remarks, jdbcType=VARCHAR}, #{attachedFilePath, jdbcType=VARCHAR},
             NOW(), NOW()
         )
     </insert>
@@ -239,22 +253,28 @@
     <update id="update">
         UPDATE quotations
         SET
-            estimate_no = #{estimateNo},
+            estimate_no = #{estimateNo, jdbcType=VARCHAR},
             version = #{version},
-            is_submitted = #{isSubmitted},
-            sales_branch_id = #{salesBranchId},
-            sales_staff_id = #{salesStaffId},
-            customer_id = #{customerId},
-            customer_name = #{customerName},
-            project_name = #{projectName},
-            total_amount = #{totalAmount},
-            total_cost = #{totalCost},
-            total_profit = #{totalProfit},
-            profit_rate = #{profitRate},
-            grand_total = #{grandTotal},
-            issue_date = #{issueDate},
-            remarks = #{remarks},
-            attached_file_path = #{attachedFilePath},
+            is_submitted = #{isSubmitted, jdbcType=BOOLEAN},
+            sales_branch_id = #{salesBranchId, jdbcType=INTEGER},
+            sales_staff_id = #{salesStaffId, jdbcType=INTEGER},
+            customer_id = #{customerId, jdbcType=INTEGER},
+            customer_name = #{customerName, jdbcType=VARCHAR},
+            project_name = #{projectName, jdbcType=VARCHAR},
+            total_amount = #{totalAmount, jdbcType=DECIMAL},
+            
+            discount_amount = #{discountAmount, jdbcType=DECIMAL}, 
+            total_cost = #{totalCost, jdbcType=DECIMAL},
+            total_profit = #{totalProfit, jdbcType=DECIMAL},
+            profit_rate = #{profitRate, jdbcType=DECIMAL},
+            grand_total = #{grandTotal, jdbcType=DECIMAL},
+            issue_date = #{issueDate, jdbcType=DATE},
+            remarks = #{remarks, jdbcType=VARCHAR},
+            
+            <if test="attachedFilePath != null">
+                attached_file_path = #{attachedFilePath, jdbcType=VARCHAR},
+            </if>
+            
             updated_at = NOW()
         WHERE id = #{id}
           AND created_by_user_id = #{createdByUserId}
@@ -276,8 +296,8 @@
         ) VALUES
         <foreach collection="items" item="item" separator=",">
             (
-                #{item.quotationId}, #{item.rowOrder}, #{item.rowType}, #{item.itemCode}, #{item.itemName},
-                #{item.manufacturer}, #{item.quantity}, #{item.costPrice}, #{item.unitPrice}
+                #{item.quotationId}, #{item.rowOrder}, #{item.rowType, jdbcType=VARCHAR}, #{item.itemCode, jdbcType=VARCHAR}, #{item.itemName, jdbcType=VARCHAR},
+                #{item.manufacturer, jdbcType=VARCHAR}, #{item.quantity, jdbcType=DECIMAL}, #{item.costPrice, jdbcType=DECIMAL}, #{item.unitPrice, jdbcType=DECIMAL}
             )
         </foreach>
     </insert>

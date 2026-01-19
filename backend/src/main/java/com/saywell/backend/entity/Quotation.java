@@ -38,6 +38,7 @@ public class Quotation {
 
     // 金額,利益情報
     private BigDecimal totalAmount; // 税抜き合計
+    private BigDecimal discountAmount; // 値引き額
     private BigDecimal totalCost; // 原価合計
     private BigDecimal totalProfit; // 一次利益
     private BigDecimal profitRate; // 利益率

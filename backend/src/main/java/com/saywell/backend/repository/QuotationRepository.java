@@ -52,10 +52,13 @@ public interface QuotationRepository {
      * 見積検索 (一覧表示用) ※一覧画面でも担当者名などが必要なため、DTOリストで返すと便利です
      */
     List<QuotationDto> search(@Param("customerName") String customerName,
+            @Param("customerCode") String customerCode,
+            @Param("salesBranchName") String salesBranchName,
             @Param("projectName") String projectName, @Param("estimateNo") String estimateNo);
 
     /**
      * 作成者IDで見積一覧を取得
      */
     List<QuotationDto> findByCreatedByUserId(@Param("createdByUserId") Integer createdByUserId);
+
 }
