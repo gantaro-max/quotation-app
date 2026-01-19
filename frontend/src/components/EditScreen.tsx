@@ -46,6 +46,7 @@ interface OcrResponseItem {
   itemName: string;
   quantity: number;
   unitPrice: number;
+  costPrice: number;
 }
 
 interface Point { r: number; c: string; }
@@ -117,6 +118,8 @@ export const EditScreen: React.FC<EditScreenProps> = ({isReadOnly, creatorName, 
   
   const [selection, setSelection] = useState<SelectionRange | null>(null);
   const [isSelecting, setIsSelecting] = useState(false);
+  // ★追加: OCR読み込み中フラグ
+  const [isOcrLoading, setIsOcrLoading] = useState(false);
   
   const [previewScale, setPreviewScale] = useState(0.75);
 
@@ -366,7 +369,7 @@ export const EditScreen: React.FC<EditScreenProps> = ({isReadOnly, creatorName, 
   });
 
   // ===========================================================================
-  // OCR解析ハンドラ (ここから)
+  // OCR解析ハンドラ (Loading表示対応版)
   // ===========================================================================
   const handleOcrAnalysis = async () => {
     // 1. ファイル添付チェック
@@ -379,6 +382,9 @@ export const EditScreen: React.FC<EditScreenProps> = ({isReadOnly, creatorName, 
     if (!window.confirm("添付ファイルの内容を読み取って明細に反映しますか？\n（現在の明細行は上書きされます）")) {
       return;
     }
+
+    // ★修正: ローディング開始
+    setIsOcrLoading(true);
 
     try {
       // 3. API送信準備
@@ -401,20 +407,19 @@ export const EditScreen: React.FC<EditScreenProps> = ({isReadOnly, creatorName, 
         }
 
         // 5. 行データ(Row型)への変換
-        // BackendのDTO(GeminiPart等)から画面用のRow型へマッピング
         const newRows: Row[] = items.map((item, index) => ({
           id: index + 1,
           dbId: null, // 新規扱いなのでnull
           type: "normal",
-          code: "", // コードは読み取れないので空
+          code: "", 
           manufacturer: "",
           item: item.itemName || "",    // 品名
           quantity: item.quantity || 0, // 数量
-          cost: 0,                      // 原価は読み取れないので0
-          price: item.unitPrice || 0,   // 単価
+          cost: item.costPrice || 0,    // 仕切価
+          price: item.unitPrice || 0,   // 単価(バックエンドが送ってこなければ0)
         }));
 
-        // 6. 20行になるまで空行を追加 (画面レイアウト維持のため)
+        // 6. 20行になるまで空行を追加
         while (newRows.length < 20) {
           newRows.push({
             id: newRows.length + 1,
@@ -430,13 +435,17 @@ export const EditScreen: React.FC<EditScreenProps> = ({isReadOnly, creatorName, 
         
         // 7. 画面に反映
         setRows(newRows);
-        alert("読み取りが完了しました");
+        // 成功時のアラートはあってもなくても良いですが、処理完了がわかるので残しておきます
+        // alert("読み取りが完了しました"); 
       } else {
         alert("OCR解析エラー: " + (json.message || "不明なエラー"));
       }
     } catch (e) {
       console.error(e);
       alert("通信エラーが発生しました");
+    } finally {
+      // ★修正: ローディング終了（成功・失敗にかかわらず）
+      setIsOcrLoading(false);
     }
   };
 
@@ -505,25 +514,28 @@ export const EditScreen: React.FC<EditScreenProps> = ({isReadOnly, creatorName, 
              
              <button // OCR自動読取ボタン
                onClick={handleOcrAnalysis} 
-               disabled={isReadOnly || !attachedFile} // ファイルがないと押せないように制御
+               // ★修正: 読み込み中もdisabledにする
+               disabled={isReadOnly || !attachedFile || isOcrLoading} 
                style={{
                  fontSize: '0.9em', 
                  padding: '5px 12px', 
-                 backgroundColor: '#8e44ad', // 紫色で目立たせる
+                 backgroundColor: '#8e44ad', 
                  color: 'white', 
                  border: 'none', 
                  borderRadius: '4px', 
-                 cursor: (isReadOnly || !attachedFile) ? 'not-allowed' : 'pointer',
-                 opacity: (isReadOnly || !attachedFile) ? 0.5 : 1, // 無効時は薄くする
+                 // ★修正: 読み込み中はカーソルと透明度を変更
+                 cursor: (isReadOnly || !attachedFile || isOcrLoading) ? 'not-allowed' : 'pointer',
+                 opacity: (isReadOnly || !attachedFile || isOcrLoading) ? 0.5 : 1, 
                  marginLeft: '5px',
                  fontWeight: 'bold',
-                 display: 'flex',       // アイコンと文字を並べるため
+                 display: 'flex',       
                  alignItems: 'center',
                  gap: '5px'
                }}
                title="添付ファイルから明細を自動読み取りします"
              >
-               🤖 自動読取
+               {/* ★修正: 読み込み中はテキストを変更 */}
+               {isOcrLoading ? '⏳ 読込中...' : '🤖 自動読取'}
              </button>
 
              <span style={styles.fileName}>{getDisplayFileName()}</span>
