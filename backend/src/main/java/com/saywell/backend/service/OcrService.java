@@ -61,16 +61,23 @@ public class OcrService {
 
         logger.info("OCR Request: {} ({})", file.getOriginalFilename(), mimeType);
 
+        // プロンプト: 余計な行を出さないように指示しつつ、コード側でもフィルタリングする
         String promptText = """
-                この見積書のPDFから、明細行（品名、数量、単価[単価がなければ金額]）を抽出してください。
+                この見積書(PDF)の【明細行のみ】を抽出してください。
+
+                【重要ルール】
+                1. 出力は CSV形式（品名, 数量, 単価）の3列のみ。
+                2. 「単価」欄について：
+                   - 見積書に「単価」の記載がある場合は、その値を記入してください。
+                   - 見積書に「単価」がなく「金額」のみ記載がある場合（一式など）は、「金額」の値を「単価」欄に記入してください。
+                3. 明細行は上から順にすべて出力してください。
+
+                【除外対象】
+                - 「小計」「消費税」「合計」「値引き」などの集計行は出力しないでください。
+                - ヘッダー行は出力しないでください。
 
                 【出力形式】
-                CSVフォーマット（ヘッダー: 品名, 数量, 単価）
-
-                【制約】
-                - ヘッダー行は不要です。データのみ返してください。
-                - 余計な文章やMarkdownタグは含めないでください。
-                - 数値には円マークやカンマを含めないでください。
+                品名, 数量, 単価
                 """;
 
         GeminiRequest requestPayload = new GeminiRequest(List.of(new GeminiContent(
@@ -102,10 +109,7 @@ public class OcrService {
             String text = root.path("candidates").get(0).path("content").path("parts").get(0)
                     .path("text").asText();
 
-            // 1. Markdownコードブロックの除去 (```csv ... ``` や ``` ... ```)
-            // 大文字小文字無視、スペース許容で強力に削除
             text = text.replaceAll("(?i)``` *[a-z]*", "").replaceAll("```", "").trim();
-
             logger.info("Gemini Extracted Text (Cleaned):\n{}", text);
 
             try (BufferedReader reader = new BufferedReader(new StringReader(text))) {
@@ -114,35 +118,26 @@ public class OcrService {
                     if (line.isBlank())
                         continue;
 
-                    // 2. 区切り文字の柔軟な判定
                     String[] columns;
                     if (line.contains("|")) {
-                        // Markdownテーブル形式 (| 品名 | 数量 |...) の場合
-                        // 先頭と末尾の | を削除してから分割
                         String cleanLine = line.replaceAll("^\\|", "").replaceAll("\\|$", "");
                         columns = cleanLine.split("\\|", -1);
                     } else if (line.contains("\t")) {
-                        // タブ区切りの場合
                         columns = line.split("\t", -1);
                     } else {
-                        // デフォルト: カンマ区切り
-                        // (注: 品名の中にカンマがある場合などは簡易分割のため崩れる可能性があります)
                         columns = line.split(",", -1);
                     }
 
                     if (columns.length < 1)
                         continue;
 
-                    // 各カラムの空白除去
-                    for (int i = 0; i < columns.length; i++) {
+                    for (int i = 0; i < columns.length; i++)
                         columns[i] = columns[i].trim();
-                    }
 
                     String name = columns[0];
 
-                    // ヘッダー行や区切り行（---）のスキップ
-                    if (name.isEmpty() || name.startsWith("-") || name.equals("品名")
-                            || name.equalsIgnoreCase("Item")) {
+                    // ★修正: 不要行の強力なフィルタリング
+                    if (shouldSkipLine(name)) {
                         continue;
                     }
 
@@ -153,15 +148,12 @@ public class OcrService {
                     if (columns.length > 1)
                         item.setQuantity(parseDecimal(columns[1]));
 
-                    // 単価・金額 (3列目、4列目)
-                    BigDecimal unitPrice = (columns.length > 2) ? parseDecimal(columns[2]) : null;
-                    BigDecimal amount = (columns.length > 3) ? parseDecimal(columns[3]) : null;
+                    // 単価 (3列目) -> 仕切価(CostPrice)へ
+                    BigDecimal price = (columns.length > 2) ? parseDecimal(columns[2]) : null;
 
-                    // 仕入見積のロジック: 金額があればそれを仕切単価(CostPrice)に、なければ単価を採用
-                    if (amount != null) {
-                        item.setCostPrice(amount);
-                    } else if (unitPrice != null) {
-                        item.setCostPrice(unitPrice);
+                    if (price != null) {
+                        // ★修正: 仕切単価(CostPrice)のみにセットする（単価(UnitPrice)には入れない）
+                        item.setCostPrice(price);
                     }
 
                     item.setRowType("normal");
@@ -176,15 +168,30 @@ public class OcrService {
         return items;
     }
 
+    // 行スキップ判定メソッド
+    private boolean shouldSkipLine(String name) {
+        if (name.isEmpty() || name.startsWith("-") || name.startsWith("=") || name.equals("品名")
+                || name.equalsIgnoreCase("Item")) {
+            return true;
+        }
+        // 集計行と思われるキーワードが含まれていたらスキップ
+        String[] skipKeywords = {"小計", "合計", "消費税", "値引", "諸経費", "以下余白", "内訳"};
+        for (String keyword : skipKeywords) {
+            if (name.contains(keyword)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private BigDecimal parseDecimal(String value) {
         if (value == null || value.isBlank())
             return null;
         try {
-            // 円マーク、カンマ、スペース、"円"などの文字を除去して数値化
             String cleaned = value.replaceAll("[,¥￥\\s円]", "");
             return new BigDecimal(cleaned);
         } catch (NumberFormatException e) {
-            return null; // 数値変換できない場合はnullを返す
+            return null;
         }
     }
 }
