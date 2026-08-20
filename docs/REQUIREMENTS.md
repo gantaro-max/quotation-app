@@ -75,8 +75,7 @@ Excel ライクな操作性（キーボード移動、範囲選択、コピペ�
 | email          | string | メールアドレス（ログイン ID）             |
 | passwordHash   | string | **ハッシュ化済みパスワード (SHA-256)**    |
 | departmentName | string | 所属部署名                                |
-
-> ⚠️ **既知の制限:** ユーザーは所属営業所（branchId）を持たない（部署名のみ）。そのためフロントエンドは編集画面の営業所初期値をユーザーごとに出し分けられず、ログイン直後は常に固定の営業所（ID: 9443）がデフォルト選択される（[LoginPage.tsx](../frontend/src/components/LoginPage.tsx)）。ユーザー単位で営業所を管理したい場合は `users` テーブルへの `branch_id` 追加、または `sales_staffs` との紐付けが必要。
+| branchId       | number \| null | 所属営業所 ID（未設定の場合は `null`。フロントエンドは `null` の場合のみ既定値にフォールバックする、[LoginPage.tsx](../frontend/src/components/LoginPage.tsx)） |
 
 ### 4.2 見積ヘッダー (Quotation)
 
@@ -127,5 +126,4 @@ Excel ライクな操作性（キーボード移動、範囲選択、コピペ�
 
 ## 7. 既知の制限事項・技術的負債
 
-- **ユーザーの所属営業所が管理されていない:** 4.1 参照。ログインユーザーごとの営業所初期値が機能しておらず、常に固定値（ID: 9443）になる。対応方針決定済み → [SPEC-001](specs/001-user-branch-id.md)
 - **見積コピー用バックエンドAPIが未使用:** `POST /api/quotations/{id}/copy`（[QuotationController.java](../backend/src/main/java/com/quotationapp/backend/controller/QuotationController.java)）と対応する `QuotationService.copy()` が実装されているが、フロントエンドはこれを呼び出していない。実際の「コピーして新規作成」機能（F-015想定の挙動）は、フロントエンド側で入力状態をリセットし、通常の新規作成 (`POST /api/quotations`) を呼ぶことで実現している。対応方針決定済み（バックエンド側を削除） → [SPEC-002](specs/002-remove-unused-copy-api.md)
