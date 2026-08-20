@@ -41,4 +41,31 @@ class UserRepositoryTest {
         assertThat(user.getPasswordHash()).isEqualTo("hashed_pw");
         assertThat(user.getDepartmentName()).isEqualTo("営業部");
     }
+
+    @Test
+    @DisplayName("findByEmail: ユーザーごとのbranch_idをNULLも含めてマッピングする")
+    void findByEmailMapsDifferentBranchIdsIncludingNull() {
+        jdbcTemplate.update("INSERT INTO branches (id, name) VALUES (1001, '第一営業所')");
+        jdbcTemplate.update("INSERT INTO branches (id, name) VALUES (1002, '第二営業所')");
+        jdbcTemplate.update("""
+                INSERT INTO users (name, email, password_hash, branch_id)
+                VALUES ('第一ユーザー', 'first@example.com', 'hash', 1001)
+                """);
+        jdbcTemplate.update("""
+                INSERT INTO users (name, email, password_hash, branch_id)
+                VALUES ('第二ユーザー', 'second@example.com', 'hash', 1002)
+                """);
+        jdbcTemplate.update("""
+                INSERT INTO users (name, email, password_hash, branch_id)
+                VALUES ('未設定ユーザー', 'null@example.com', 'hash', NULL)
+                """);
+
+        Optional<User> first = userRepository.findByEmail("first@example.com");
+        Optional<User> second = userRepository.findByEmail("second@example.com");
+        Optional<User> withoutBranch = userRepository.findByEmail("null@example.com");
+
+        assertThat(first).get().extracting(User::getBranchId).isEqualTo(1001);
+        assertThat(second).get().extracting(User::getBranchId).isEqualTo(1002);
+        assertThat(withoutBranch).get().extracting(User::getBranchId).isNull();
+    }
 }
