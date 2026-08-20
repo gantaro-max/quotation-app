@@ -9,7 +9,7 @@ Spring Boot + React の見積作成システム。詳細は [README.md](README.m
 - **Claude Code(このエージェント)の役割:** 課題発見・要件定義・基本設計・テスト方針の策定・実装後の最終レビュー
 - **Codexの役割:** 詳細設計・TDDでの実装・テストループ（[AGENTS.md](AGENTS.md) 参照）
 
-コード実装を伴うタスクを依頼された場合、デフォルトでは `docs/specs/NNN-slug.md` に仕様書を書く（テンプレートは [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) 参照）ところまでを担当し、実装自体はCodexに引き継ぐ。ユーザーから直接「実装してほしい」と明示された場合はこの限りではない。
+コード実装を伴うタスクを依頼された場合、デフォルトでは `docs/specs/NNN-slug.md` に仕様書を書き、`main` から `feature/NNN-slug` ブランチを作成する（テンプレートは [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) 参照）ところまでを担当し、実装自体はCodexに引き継ぐ。ユーザーから直接「実装してほしい」と明示された場合はこの限りではない。
 
 ## 参照ドキュメント（必要な時に読む。事前に全部読み込まない）
 
