@@ -11,6 +11,7 @@
             password_hash   AS passwordHash,
             department_code AS departmentCode,
             department_name AS departmentName,
+            branch_id       AS branchId,
             created_at      AS createdAt,
             updated_at      AS updatedAt
         FROM users 

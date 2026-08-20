@@ -1,6 +1,6 @@
 # SPEC-001: ユーザーの所属営業所 (branch_id) 対応
 
-- **ステータス:** 未着手
+- **ステータス:** レビュー中
 - **担当:** 詳細設計・実装・テストは Codex、要件定義・基本設計・最終レビューは Claude Code
 
 ## 背景・課題
@@ -48,11 +48,11 @@
 
 ## 受け入れ基準
 
-- [ ] `users` テーブルに `branch_id` カラムが追加されている
-- [ ] TC1: `branch_id` 設定済みユーザーのログインで `LoginResponse.branchId` が正しい値を返す
-- [ ] TC2: `branch_id` が `NULL` のユーザーでログインしても例外にならず `branchId=null` が返る
-- [ ] TC3: `UserRepository` が `branch_id`(NULL・非NULL両方)を正しくマッピングする
-- [ ] TC1〜TC3のテストコードが実装前に失敗し、実装後にパスすることを確認済み(後付けテストでない)
+- [x] `users` テーブルに `branch_id` カラムが追加されている
+- [x] TC1: `branch_id` 設定済みユーザーのログインで `LoginResponse.branchId` が正しい値を返す
+- [x] TC2: `branch_id` が `NULL` のユーザーでログインしても例外にならず `branchId=null` が返る
+- [x] TC3: `UserRepository` が `branch_id`(NULL・非NULL両方)を正しくマッピングする
+- [x] TC1〜TC3のテストコードが実装前に失敗し、実装後にパスすることを確認済み(後付けテストでない)
 
 ## スコープ外
 

@@ -1,15 +1,3 @@
--- Users
-CREATE TABLE IF NOT EXISTS users (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(50) NOT NULL,
-    email VARCHAR(100) NOT NULL UNIQUE,
-    password_hash VARCHAR(255) NOT NULL,
-    department_code VARCHAR(20),
-    department_name VARCHAR(100),
-    created_at TIMESTAMP,
-    updated_at TIMESTAMP
-);
-
 -- Branches
 CREATE TABLE IF NOT EXISTS branches (
     id INT PRIMARY KEY,
@@ -19,6 +7,20 @@ CREATE TABLE IF NOT EXISTS branches (
     phone VARCHAR(20),
     created_at TIMESTAMP,
     updated_at TIMESTAMP
+);
+
+-- Users
+CREATE TABLE IF NOT EXISTS users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(50) NOT NULL,
+    email VARCHAR(100) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    department_code VARCHAR(20),
+    department_name VARCHAR(100),
+    branch_id INT,
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP,
+    FOREIGN KEY (branch_id) REFERENCES branches(id)
 );
 
 -- Sales Staffs
