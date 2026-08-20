@@ -42,7 +42,7 @@ Spring Boot (Backend) と React (Frontend) で構築された Web 見積作成�
 
 ### 1. データベース設定
 
-MySQL にデータベースを作成し、[backend/DATABASE.md](backend/DATABASE.md) のテーブル定義を参考にテーブルを作成します（`backend/src/test/resources/schema.sql` にも同等の CREATE TABLE 文があります）。
+MySQL にデータベースを作成し、[docs/DATABASE.md](docs/DATABASE.md) のテーブル定義を参考にテーブルを作成します（`backend/src/test/resources/schema.sql` にも同等の CREATE TABLE 文があります）。
 
 ```sql
 CREATE DATABASE quotation_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
@@ -87,21 +87,26 @@ npm run dev
 - 対応ファイル: PDF, 画像 (PNG, JPEG 等)
 - `GEMINI_API_KEY` 環境変数の設定が必要です。
 
+## ドキュメント
+
+- [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md) — 要件定義書（機能一覧・データ要件・既知の制限事項）
+- [docs/DATABASE.md](docs/DATABASE.md) — データベース設計書（ER図・テーブル定義）
+
 ## ディレクトリ構成
 
 ```
 .
-├── backend/                       # Spring Boot ソースコード
-│   ├── DATABASE.md    # DB設計書
+├── docs/                           # ドキュメント（要件定義・DB設計）
+├── backend/                        # Spring Boot ソースコード
 │   └── src/main/java/com/quotationapp/backend/
-│       ├── controller/            # APIエンドポイント
-│       ├── dto/                   # データ転送オブジェクト
-│       ├── entity/                # DBエンティティ
-│       ├── repository/            # MyBatis Mapperインターフェース
-│       └── service/               # ビジネスロジック (OcrService含む)
+│       ├── controller/             # APIエンドポイント
+│       ├── dto/                    # データ転送オブジェクト
+│       ├── entity/                 # DBエンティティ
+│       ├── repository/             # MyBatis Mapperインターフェース
+│       └── service/                # ビジネスロジック (OcrService含む)
 │   └── src/main/resources/mappers/ # MyBatis XMLマッパー
-└── frontend/                      # React ソースコード
+└── frontend/                       # React ソースコード
     └── src/
-        ├── components/            # UIコンポーネント (EditScreen, QuotationList)
-        └── types.ts                # TypeScript型定義
+        ├── components/             # UIコンポーネント (EditScreen, QuotationList)
+        └── types.ts                 # TypeScript型定義
 ```
