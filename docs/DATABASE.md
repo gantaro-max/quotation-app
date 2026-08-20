@@ -2,7 +2,7 @@
 
 - **Database Name:** `quotation_db`
 - **Character Set:** `utf8mb4`
-- **更新日:** 2026 年 1 月 15 日
+- **更新日:** 2026 年 8 月 20 日
 
 ## 1. ER 図 (Entity Relationship)
 
@@ -118,8 +118,8 @@ erDiagram
 | カラム名             | 型                | 制約                   | 説明                            |
 | :------------------- | :---------------- | :--------------------- | :------------------------------ |
 | **id**               | BIGINT            | PK, AI                 | システム ID                     |
-| estimate_no          | VARCHAR(50)       | NOT NULL               | 見積番号 (Q-yyyyMMddHHmmss-RRR) |
-| version              | INT               | DEFAULT 1              | 版数 (未使用/予備)              |
+| estimate_no          | VARCHAR(50)       | NOT NULL               | 見積番号 (Q-yyyyMMdd-HHmmss-RRR-枝番、例: Q-20260117-153045-482-01) |
+| version              | INT               | DEFAULT 1              | 版数 (未使用/予備。枝番管理は estimate_no 末尾の連番で行う) |
 | is_submitted         | BOOLEAN           | DEFAULT FALSE          | 提出済フラグ                    |
 | created_by_user_id   | INT               | FK -> users(id)        | 作成者 (事務担当)               |
 | user_department_name | VARCHAR(100)      |                        | 作成時点の部署名（履歴用）      |
