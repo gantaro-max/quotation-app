@@ -42,7 +42,7 @@ Spring Boot (Backend) と React (Frontend) で構築された Web 見積作成�
 
 ### 1. データベース設定
 
-MySQL にデータベースを作成し、[backend/SAYWELL_QUOTATION_DB.md](backend/SAYWELL_QUOTATION_DB.md) のテーブル定義を参考にテーブルを作成します（`backend/src/test/resources/schema.sql` にも同等の CREATE TABLE 文があります）。
+MySQL にデータベースを作成し、[docs/DATABASE.md](docs/DATABASE.md) のテーブル定義を参考にテーブルを作成します（`backend/src/test/resources/schema.sql` にも同等の CREATE TABLE 文があります）。
 
 ```sql
 CREATE DATABASE saywell_quotation_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
@@ -87,21 +87,29 @@ npm run dev
 - 対応ファイル: PDF, 画像 (PNG, JPEG 等)
 - `GEMINI_API_KEY` 環境変数の設定が必要です。
 
+## ドキュメント
+
+- [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md) — 要件定義書（機能一覧・データ要件・既知の制限事項）
+- [docs/DATABASE.md](docs/DATABASE.md) — データベース設計書（ER図・テーブル定義）
+- [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) — 開発プロセス（役割分担・仕様書運用ルール・TDDルール）
+- [docs/specs/](docs/specs/) — 個別課題の仕様書
+- [CLAUDE.md](CLAUDE.md) / [AGENTS.md](AGENTS.md) — 各AIコーディングエージェント向けの指示（起動時に自動で読み込まれる）
+
 ## ディレクトリ構成
 
 ```
 .
-├── backend/                       # Spring Boot ソースコード
-│   ├── SAYWELL_QUOTATION_DB.md    # DB設計書
+├── docs/                           # ドキュメント（要件定義・DB設計）
+├── backend/                        # Spring Boot ソースコード
 │   └── src/main/java/com/saywell/backend/
-│       ├── controller/            # APIエンドポイント
-│       ├── dto/                   # データ転送オブジェクト
-│       ├── entity/                # DBエンティティ
-│       ├── repository/            # MyBatis Mapperインターフェース
-│       └── service/               # ビジネスロジック (OcrService含む)
+│       ├── controller/             # APIエンドポイント
+│       ├── dto/                    # データ転送オブジェクト
+│       ├── entity/                 # DBエンティティ
+│       ├── repository/             # MyBatis Mapperインターフェース
+│       └── service/                # ビジネスロジック (OcrService含む)
 │   └── src/main/resources/mappers/ # MyBatis XMLマッパー
-└── frontend/                      # React ソースコード
+└── frontend/                       # React ソースコード
     └── src/
-        ├── components/            # UIコンポーネント (EditScreen, QuotationList)
-        └── types.ts                # TypeScript型定義
+        ├── components/             # UIコンポーネント (EditScreen, QuotationList)
+        └── types.ts                 # TypeScript型定義
 ```
