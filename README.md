@@ -91,6 +91,9 @@ npm run dev
 
 - [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md) — 要件定義書（機能一覧・データ要件・既知の制限事項）
 - [docs/DATABASE.md](docs/DATABASE.md) — データベース設計書（ER図・テーブル定義）
+- [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) — 開発プロセス（役割分担・仕様書運用ルール・TDDルール）
+- [docs/specs/](docs/specs/) — 個別課題の仕様書
+- [CLAUDE.md](CLAUDE.md) / [AGENTS.md](AGENTS.md) — 各AIコーディングエージェント向けの指示（起動時に自動で読み込まれる）
 
 ## ディレクトリ構成
 
