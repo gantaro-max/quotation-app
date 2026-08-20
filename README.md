@@ -42,27 +42,28 @@ Spring Boot (Backend) と React (Frontend) で構築された Web 見積作成�
 
 ### 1. データベース設定
 
-MySQL にデータベースを作成し、`test/resources/schema.sql` の内容を参考にテーブルを作成します。
+MySQL にデータベースを作成し、[backend/SAYWELL_QUOTATION_DB.md](backend/SAYWELL_QUOTATION_DB.md) のテーブル定義を参考にテーブルを作成します（`backend/src/test/resources/schema.sql` にも同等の CREATE TABLE 文があります）。
 
 ```sql
 CREATE DATABASE saywell_quotation_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ```
 
+マスタデータ（営業所・営業担当・顧客）や見積データは環境ごとに用意してください。本リポジトリには実データは含まれていません。
+
 ### 2. Backend 起動
 
-`saywell/backend/src/main/resources/application.properties` の DB 接続設定と Gemini API キーを確認・変更してください。
+DB 接続情報と Gemini API キーは環境変数で渡します（[application.properties](backend/src/main/resources/application.properties) にハードコードしないでください）。
 
-```properties
-spring.datasource.url=jdbc:mysql://localhost:3306/saywell_quotation_db...
-spring.datasource.username=root
-spring.datasource.password=your_password
-gemini.api.key=YOUR_GEMINI_API_KEY
+```bash
+export DB_USERNAME=root
+export DB_PASSWORD=your_password
+export GEMINI_API_KEY=your_gemini_api_key
 ```
 
 起動コマンド:
 
 ```bash
-cd saywell/backend
+cd backend
 ./gradlew bootRun
 ```
 
@@ -71,7 +72,7 @@ cd saywell/backend
 ### 3. Frontend 起動
 
 ```bash
-cd src
+cd frontend
 npm install
 npm run dev
 ```
@@ -84,21 +85,23 @@ npm run dev
 編集画面の「📎 仕入見積添付」ボタンからファイルをアップロードした後、「🤖 自動読取」ボタンをクリックすると、Gemini API を経由して明細行が自動入力されます。
 
 - 対応ファイル: PDF, 画像 (PNG, JPEG 等)
-- API キーの設定が必要です (`application.properties`)。
+- `GEMINI_API_KEY` 環境変数の設定が必要です。
 
 ## ディレクトリ構成
 
 ```
 .
-├── mappers/               # MyBatis XMLマッパー
-├── saywell/backend/       # Spring Boot ソースコード
-│   ├── controller/        # APIエンドポイント
-│   ├── dto/               # データ転送オブジェクト
-│   ├── entity/            # DBエンティティ
-│   ├── repository/        # MyBatis Mapperインターフェース
-│   └── service/           # ビジネスロジック (OcrService含む)
-├── src/                   # React ソースコード
-│   ├── components/        # UIコンポーネント (EditScreen, QuotationList)
-│   └── types.ts           # TypeScript型定義
-└── test/                  # JUnitテストコード
+├── backend/                       # Spring Boot ソースコード
+│   ├── SAYWELL_QUOTATION_DB.md    # DB設計書
+│   └── src/main/java/com/saywell/backend/
+│       ├── controller/            # APIエンドポイント
+│       ├── dto/                   # データ転送オブジェクト
+│       ├── entity/                # DBエンティティ
+│       ├── repository/            # MyBatis Mapperインターフェース
+│       └── service/               # ビジネスロジック (OcrService含む)
+│   └── src/main/resources/mappers/ # MyBatis XMLマッパー
+└── frontend/                      # React ソースコード
+    └── src/
+        ├── components/            # UIコンポーネント (EditScreen, QuotationList)
+        └── types.ts                # TypeScript型定義
 ```
