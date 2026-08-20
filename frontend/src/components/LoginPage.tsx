@@ -25,7 +25,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
       });
       const json = await res.json();
       if (json.success) {
-        // ログイン成功時、デフォルトの営業所IDがない場合は仮設定
+        // branch_id未設定という異常系では、安全策として既定の営業所IDを使用する
         const loggedInUser = json.data;
         const userWithBranch = { ...loggedInUser, branchId: loggedInUser.branchId || 9443 };
         // 親コンポーネントへ通知

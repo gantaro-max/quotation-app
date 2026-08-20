@@ -42,7 +42,7 @@ public class UserService {
         // 3. Entity -> DTO (LoginResponse) 変換
         // パスワードはここで除外されます
         return new LoginResponse(user.getId(), user.getName(), user.getEmail(),
-                user.getDepartmentName());
+                user.getDepartmentName(), user.getBranchId());
     }
 
     /**

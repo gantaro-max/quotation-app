@@ -41,13 +41,14 @@ class UserControllerTest {
         request.setPassword("password");
 
         // Mock返却値
-        LoginResponse response = new LoginResponse(1, "User", "test@example.com", "Dept");
+        LoginResponse response = new LoginResponse(1, "User", "test@example.com", "Dept", 1001);
         when(userService.login("test@example.com", "password")).thenReturn(response);
 
         mockMvc.perform(post("/api/login").contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request))).andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.email").value("test@example.com"));
+                .andExpect(jsonPath("$.data.email").value("test@example.com"))
+                .andExpect(jsonPath("$.data.branchId").value(1001));
     }
 
     @Test
