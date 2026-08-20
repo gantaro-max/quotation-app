@@ -12,6 +12,7 @@ erDiagram
     branches ||--o{ customers : "管轄"
     sales_staffs ||--o{ customers : "担当"
 
+    branches o|--o{ users : "所属"
     users ||--o{ quotations : "作成"
     branches ||--o{ quotations : "営業拠点"
     sales_staffs ||--o{ quotations : "営業担当"
@@ -28,6 +29,7 @@ erDiagram
         string name "氏名"
         string email "メール"
         string department_name "部署名"
+        int branch_id FK "所属拠点CD"
     }
     sales_staffs {
         int id PK "社員CD"
@@ -81,6 +83,7 @@ erDiagram
 | password_hash   | VARCHAR(255) | NOT NULL    | パスワードハッシュ (SHA-256 等) |
 | department_code | VARCHAR(20)  |             | 所属部署コード                  |
 | department_name | VARCHAR(100) |             | 所属部署名                      |
+| branch_id       | INT          | FK -> branches(id), NULL | 所属営業所 ID          |
 | created_at      | DATETIME     | DEFAULT NOW | 作成日時                        |
 | updated_at      | DATETIME     | DEFAULT NOW | 更新日時                        |
 

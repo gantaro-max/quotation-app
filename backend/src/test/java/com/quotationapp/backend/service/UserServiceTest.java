@@ -2,6 +2,7 @@ package com.quotationapp.backend.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.when;
 import java.util.Optional;
@@ -52,6 +53,46 @@ class UserServiceTest {
         assertNotNull(response);
         assertEquals(1, response.getId());
         assertEquals("test@example.com", response.getEmail());
+    }
+
+    @Test
+    @DisplayName("login: 所属営業所が設定されたユーザーのbranchIdを返す")
+    void loginReturnsConfiguredBranchId() {
+        User user = new User();
+        user.setId(1);
+        user.setEmail("branch-user@example.com");
+        user.setPasswordHash(VALID_HASH);
+        user.setName("営業所ユーザー");
+        user.setDepartmentName("営業部");
+        user.setBranchId(1001);
+
+        when(userRepository.findByEmail("branch-user@example.com"))
+                .thenReturn(Optional.of(user));
+
+        LoginResponse response =
+                userService.login("branch-user@example.com", "hashed_password");
+
+        assertEquals(1001, response.getBranchId());
+    }
+
+    @Test
+    @DisplayName("login: 所属営業所が未設定ならbranchIdをnullで返す")
+    void loginReturnsNullWhenBranchIdIsNotConfigured() {
+        User user = new User();
+        user.setId(2);
+        user.setEmail("no-branch@example.com");
+        user.setPasswordHash(VALID_HASH);
+        user.setName("営業所未設定ユーザー");
+        user.setDepartmentName("営業部");
+        user.setBranchId(null);
+
+        when(userRepository.findByEmail("no-branch@example.com"))
+                .thenReturn(Optional.of(user));
+
+        LoginResponse response =
+                userService.login("no-branch@example.com", "hashed_password");
+
+        assertNull(response.getBranchId());
     }
 
     @Test

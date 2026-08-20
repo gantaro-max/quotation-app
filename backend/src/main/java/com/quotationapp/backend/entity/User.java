@@ -23,8 +23,10 @@ public class User {
     // 所属部署コード (DBカラム: department_code)
     private String departmentCode;
 
+    // 所属営業所ID (DBカラム: branch_id)
+    private Integer branchId;
+
     // 所属部署名 (DBカラム: department_name)
-    // ※ 以前の branchId は sales_staffs テーブル側の持ち物なので、ここには含めません
     private String departmentName;
 
     // 作成日時
