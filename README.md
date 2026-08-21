@@ -113,3 +113,7 @@ npm run dev
         ├── components/             # UIコンポーネント (EditScreen, QuotationList)
         └── types.ts                 # TypeScript型定義
 ```
+
+## License
+
+[MIT](LICENSE)
