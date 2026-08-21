@@ -1,6 +1,6 @@
 # データベース設計書
 
-- **Database Name:** `saywell_quotation_db`
+- **Database Name:** `quotation_db`
 - **Character Set:** `utf8mb4`
 - **更新日:** 2026 年 8 月 20 日
 

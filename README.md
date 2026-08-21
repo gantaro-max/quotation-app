@@ -1,4 +1,4 @@
-# 見積作成システム (Saywell Quotation System)
+# 見積作成システム (Quotation Management System)
 
 Spring Boot (Backend) と React (Frontend) で構築された Web 見積作成アプリケーションです。
 見積の作成、PDF プレビュー、履歴管理、および **Gemini API を使用した OCR 自動読取機能** を備えています。
@@ -45,7 +45,7 @@ Spring Boot (Backend) と React (Frontend) で構築された Web 見積作成�
 MySQL にデータベースを作成し、[docs/DATABASE.md](docs/DATABASE.md) のテーブル定義を参考にテーブルを作成します（`backend/src/test/resources/schema.sql` にも同等の CREATE TABLE 文があります）。
 
 ```sql
-CREATE DATABASE saywell_quotation_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE quotation_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ```
 
 マスタデータ（営業所・営業担当・顧客）や見積データは環境ごとに用意してください。本リポジトリには実データは含まれていません。
@@ -101,7 +101,7 @@ npm run dev
 .
 ├── docs/                           # ドキュメント（要件定義・DB設計）
 ├── backend/                        # Spring Boot ソースコード
-│   └── src/main/java/com/saywell/backend/
+│   └── src/main/java/com/quotationapp/backend/
 │       ├── controller/             # APIエンドポイント
 │       ├── dto/                    # データ転送オブジェクト
 │       ├── entity/                 # DBエンティティ

@@ -20,10 +20,10 @@
 
 ### 削除対象
 
-- `backend/src/main/java/com/saywell/backend/controller/QuotationController.java` の `copy()` メソッド (`POST /{id}/copy`)
-- `backend/src/main/java/com/saywell/backend/service/QuotationService.java` の `copy()` メソッド
-- `backend/src/main/java/com/saywell/backend/dto/QuotationCopyRequest.java`
-- `backend/src/test/java/com/saywell/backend/controller/QuotationControllerTest.java` 内の対応するテストケース(copy関連)
+- `backend/src/main/java/com/quotationapp/backend/controller/QuotationController.java` の `copy()` メソッド (`POST /{id}/copy`)
+- `backend/src/main/java/com/quotationapp/backend/service/QuotationService.java` の `copy()` メソッド
+- `backend/src/main/java/com/quotationapp/backend/dto/QuotationCopyRequest.java`
+- `backend/src/test/java/com/quotationapp/backend/controller/QuotationControllerTest.java` 内の対応するテストケース(copy関連)
 - 上記メソッド/DTOを参照している箇所が他にないか、削除前にリポジトリ全体をgrepして確認すること
 
 ### ドキュメント更新

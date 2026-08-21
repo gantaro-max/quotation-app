@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 
-<mapper namespace="com.saywell.backend.repository.QuotationRepository">
+<mapper namespace="com.quotationapp.backend.repository.QuotationRepository">
 
-    <resultMap id="QuotationResultMap" type="com.saywell.backend.entity.Quotation">
+    <resultMap id="QuotationResultMap" type="com.quotationapp.backend.entity.Quotation">
         <id property="id" column="id" />
         <result property="estimateNo" column="estimate_no" />
         <result property="version" column="version" />
@@ -28,7 +28,7 @@
         <result property="updatedAt" column="updated_at" />
     </resultMap>
 
-    <resultMap id="QuotationItemResultMap" type="com.saywell.backend.entity.QuotationItem">
+    <resultMap id="QuotationItemResultMap" type="com.quotationapp.backend.entity.QuotationItem">
         <id property="id" column="id" />
         <result property="quotationId" column="quotation_id" />
         <result property="rowOrder" column="row_order" />
@@ -41,7 +41,7 @@
         <result property="unitPrice" column="unit_price" />
     </resultMap>
 
-    <resultMap id="QuotationDtoMap" type="com.saywell.backend.dto.QuotationDto">
+    <resultMap id="QuotationDtoMap" type="com.quotationapp.backend.dto.QuotationDto">
         <id property="id" column="q_id" />
         <result property="estimateNo" column="q_estimate_no" />
         <result property="version" column="q_version" />
@@ -73,29 +73,29 @@
         <result property="createdAt" column="q_created_at" />
         <result property="updatedAt" column="q_updated_at" />
 
-        <association property="createdByUser" javaType="com.saywell.backend.dto.UserDto">
+        <association property="createdByUser" javaType="com.quotationapp.backend.dto.UserDto">
             <id property="id" column="u_id"/>
             <result property="name" column="u_name"/>           
         </association>
 
-        <association property="salesBranch" javaType="com.saywell.backend.dto.BranchDto">
+        <association property="salesBranch" javaType="com.quotationapp.backend.dto.BranchDto">
             <id property="id" column="b_id"/>
             <result property="name" column="b_name"/>
             <result property="address" column="b_address"/>
             <result property="phone" column="b_phone"/>
         </association>
 
-        <association property="salesStaff" javaType="com.saywell.backend.dto.SalesStaffDto">
+        <association property="salesStaff" javaType="com.quotationapp.backend.dto.SalesStaffDto">
             <id property="id" column="s_id"/>
             <result property="name" column="s_name"/>
         </association>
 
-        <association property="customer" javaType="com.saywell.backend.dto.CustomerDto">
+        <association property="customer" javaType="com.quotationapp.backend.dto.CustomerDto">
             <id property="id" column="c_id"/>
             <result property="name" column="c_name"/>
         </association>
 
-        <collection property="items" ofType="com.saywell.backend.entity.QuotationItem">
+        <collection property="items" ofType="com.quotationapp.backend.entity.QuotationItem">
             <id property="id" column="i_id"/>
             <result property="quotationId" column="q_id"/>
             <result property="rowOrder" column="i_row_order"/>

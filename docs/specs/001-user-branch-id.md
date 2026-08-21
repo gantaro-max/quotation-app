@@ -23,10 +23,10 @@
 
 ### バックエンド
 
-- `backend/src/main/java/com/saywell/backend/entity/User.java`: `private Integer branchId;` を追加。
+- `backend/src/main/java/com/quotationapp/backend/entity/User.java`: `private Integer branchId;` を追加。
 - `backend/src/main/resources/mappers/usermapper.xml`: `findByEmail` 等の該当SELECTに `branch_id` カラムを追加。
-- `backend/src/main/java/com/saywell/backend/dto/LoginResponse.java`: `branchId` フィールドを追加(コンストラクタ含む)。
-- `backend/src/main/java/com/saywell/backend/service/UserService.java`: `login()` 内で `LoginResponse` 生成時に `user.getBranchId()` を渡す。
+- `backend/src/main/java/com/quotationapp/backend/dto/LoginResponse.java`: `branchId` フィールドを追加(コンストラクタ含む)。
+- `backend/src/main/java/com/quotationapp/backend/service/UserService.java`: `login()` 内で `LoginResponse` 生成時に `user.getBranchId()` を渡す。
 - 他に `UserDto.java` 等が存在する場合は同様に追加する。
 
 ### フロントエンド

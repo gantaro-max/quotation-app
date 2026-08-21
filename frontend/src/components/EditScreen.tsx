@@ -654,7 +654,7 @@ export const EditScreen: React.FC<EditScreenProps> = ({isReadOnly, creatorName, 
                       </div>
                     </div>
                     <div style={styles.companyInfo}>
-                      見積No: {estimateNo}<br/>日付: {date}<br/><br/><strong>株式会社セイエル</strong><br/>{currentBranchName}<br/>{currentBranchAddress}<br/>TEL: {currentBranchPhone}<br/><div style={{marginTop:'5px', paddingTop:'2px'}}>作成: {currentStaffName}</div>
+                      見積No: {estimateNo}<br/>日付: {date}<br/><br/><strong>株式会社サンプル</strong><br/>{currentBranchName}<br/>{currentBranchAddress}<br/>TEL: {currentBranchPhone}<br/><div style={{marginTop:'5px', paddingTop:'2px'}}>作成: {currentStaffName}</div>
                     </div>
                   </div>
                 </>
