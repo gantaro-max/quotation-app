@@ -3,10 +3,8 @@ package com.quotationapp.backend.controller;
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -20,7 +18,6 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.quotationapp.backend.dto.ApiResponse;
-import com.quotationapp.backend.dto.QuotationCopyRequest;
 import com.quotationapp.backend.dto.QuotationDto;
 import com.quotationapp.backend.entity.QuotationItem;
 import com.quotationapp.backend.exception.ResourceNotFoundException; // 追加
@@ -181,19 +178,6 @@ public class QuotationController {
 
         quotationService.delete(id, currentUserId);
         return ResponseEntity.ok(ApiResponse.success("見積を削除しました", null));
-    }
-
-    /**
-     * 見積をコピーして新規作成 POST /api/quotations/{id}/copy
-     */
-    @PostMapping("/{id}/copy")
-    public ResponseEntity<ApiResponse<QuotationDto>> copy(@PathVariable Long id,
-            @Validated @RequestBody QuotationCopyRequest request) {
-
-        QuotationDto dto = quotationService.copy(id, request.getNewCreatedByUserId(),
-                request.getNewUserDepartmentName());
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success("見積をコピーして新規作成しました", dto));
     }
 
     // =========================================================================
