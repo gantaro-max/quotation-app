@@ -58,7 +58,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
             className="loginInput" 
             value={email} 
             onChange={(e) => setEmail(e.target.value)} 
-            placeholder="user@quotationapp.co.jp" 
+            placeholder="user@example.com"
             onKeyDown={handleKeyDown} 
           />
         </div>
