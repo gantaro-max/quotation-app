@@ -4,7 +4,6 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.quotationapp.backend.dto.QuotationDto;
@@ -131,59 +130,6 @@ public class QuotationService {
 
         quotationRepository.deleteItemsByQuotationId(id);
         quotationRepository.delete(id, currentUserId);
-    }
-
-    /**
-     * 見積コピー (別案件としてコピーする場合)
-     */
-    @Transactional
-    public QuotationDto copy(Long sourceId, Integer newCreatedByUserId,
-            String newUserDepartmentName) {
-        QuotationDto source = findDtoById(sourceId);
-
-        QuotationDto newDto = new QuotationDto();
-        // コピー時は常に新しい番号を発行
-        newDto.setEstimateNo(generateNewEstimateNo());
-        newDto.setVersion(1);
-        newDto.setIsSubmitted(false);
-        newDto.setCreatedByUserId(newCreatedByUserId);
-
-        newDto.setSalesBranchId(source.getSalesBranchId());
-        newDto.setSalesStaffId(source.getSalesStaffId());
-        newDto.setCustomerId(source.getCustomerId());
-        newDto.setCustomerName(source.getCustomerName());
-
-        // 案件名をそのまま引き継ぐ
-        newDto.setProjectName(source.getProjectName());
-
-        newDto.setIssueDate(null);
-        newDto.setRemarks(source.getRemarks());
-
-        newDto.setTotalAmount(source.getTotalAmount());
-        newDto.setDiscountAmount(source.getDiscountAmount());
-        newDto.setTotalCost(source.getTotalCost());
-        newDto.setTotalProfit(source.getTotalProfit());
-        newDto.setProfitRate(source.getProfitRate());
-        newDto.setGrandTotal(source.getGrandTotal());
-        newDto.setAttachedFilePath(null);
-
-        if (source.getItems() != null) {
-            List<QuotationItem> newItems = source.getItems().stream().map(item -> {
-                QuotationItem newItem = new QuotationItem();
-                newItem.setRowOrder(item.getRowOrder());
-                newItem.setRowType(item.getRowType());
-                newItem.setItemCode(item.getItemCode());
-                newItem.setItemName(item.getItemName());
-                newItem.setManufacturer(item.getManufacturer());
-                newItem.setQuantity(item.getQuantity());
-                newItem.setCostPrice(item.getCostPrice());
-                newItem.setUnitPrice(item.getUnitPrice());
-                return newItem;
-            }).collect(Collectors.toList());
-            newDto.setItems(newItems);
-        }
-
-        return create(newDto);
     }
 
     // =========================================================================

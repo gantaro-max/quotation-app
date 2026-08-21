@@ -6,7 +6,6 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import java.math.BigDecimal;
@@ -22,7 +21,6 @@ import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.quotationapp.backend.dto.QuotationCopyRequest;
 import com.quotationapp.backend.dto.QuotationDto;
 import com.quotationapp.backend.entity.QuotationItem;
 import com.quotationapp.backend.exception.ResourceNotFoundException;
@@ -142,20 +140,6 @@ class QuotationControllerTest {
                 mockMvc.perform(multipart("/api/quotations/ocr").file(file))
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$.success").value(true));
-        }
-
-        @Test
-        @DisplayName("POST /api/quotations/{id}/copy: 正常系")
-        void testCopy_Success() throws Exception {
-                QuotationCopyRequest req = new QuotationCopyRequest();
-                req.setNewCreatedByUserId(2);
-
-                when(quotationService.copy(any(), any(), any())).thenReturn(testDto);
-
-                mockMvc.perform(post("/api/quotations/1/copy")
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content(objectMapper.writeValueAsString(req)))
-                                .andExpect(status().isCreated());
         }
 
         @Test

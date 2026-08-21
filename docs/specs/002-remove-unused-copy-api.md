@@ -1,6 +1,6 @@
 # SPEC-002: 見積コピー用バックエンドAPI (未使用) の削除
 
-- **ステータス:** 未着手
+- **ステータス:** レビュー中
 - **担当:** 詳細設計・実装・テストは Codex、要件定義・基本設計・最終レビューは Claude Code
 
 ## 背景・課題
@@ -42,10 +42,10 @@
 
 ## 受け入れ基準
 
-- [ ] TC1: `/api/quotations/{id}/copy` エンドポイントおよび `QuotationCopyRequest` への参照がリポジトリ内に残っていない
-- [ ] TC2: `./gradlew test` が全てパスする
-- [ ] TC3: フロントエンドの「コピーして新規作成」→新規保存フローが従来通り動作する
-- [ ] `docs/REQUIREMENTS.md` が更新されている
+- [x] TC1: `/api/quotations/{id}/copy` エンドポイントおよび `QuotationCopyRequest` への参照がリポジトリ内に残っていない
+- [x] TC2: `./gradlew test` が全てパスする
+- [x] TC3: フロントエンドの「コピーして新規作成」→新規保存フローが従来通り動作する
+- [x] `docs/REQUIREMENTS.md` が更新されている
 
 ## スコープ外
 

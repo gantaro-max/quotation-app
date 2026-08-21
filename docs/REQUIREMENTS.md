@@ -126,4 +126,4 @@ Excel ライクな操作性（キーボード移動、範囲選択、コピペ�
 
 ## 7. 既知の制限事項・技術的負債
 
-- **見積コピー用バックエンドAPIが未使用:** `POST /api/quotations/{id}/copy`（[QuotationController.java](../backend/src/main/java/com/quotationapp/backend/controller/QuotationController.java)）と対応する `QuotationService.copy()` が実装されているが、フロントエンドはこれを呼び出していない。実際の「コピーして新規作成」機能（F-015想定の挙動）は、フロントエンド側で入力状態をリセットし、通常の新規作成 (`POST /api/quotations`) を呼ぶことで実現している。対応方針決定済み（バックエンド側を削除） → [SPEC-002](specs/002-remove-unused-copy-api.md)
+- 見積の「コピーして新規作成」は、フロントエンドで編集状態を新規作成モードへ移行し、内容を確認・編集後に通常の新規作成API (`POST /api/quotations`) で保存する。
