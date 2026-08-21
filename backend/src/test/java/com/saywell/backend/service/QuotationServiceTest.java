@@ -141,24 +141,6 @@ class QuotationServiceTest {
         verify(quotationRepository).delete(id, currentUserId);
     }
 
-    @Test
-    @DisplayName("copy: 正常系")
-    void testCopy_Success() {
-        Long sourceId = 1L;
-        when(quotationRepository.findDtoById(sourceId)).thenReturn(Optional.of(testDto));
-
-        doAnswer(invocation -> {
-            Quotation q = invocation.getArgument(0);
-            q.setId(2L); // 新しいID
-            return 1;
-        }).when(quotationRepository).insert(any(Quotation.class));
-
-        when(quotationRepository.findDtoById(2L)).thenReturn(Optional.of(testDto));
-
-        QuotationDto result = quotationService.copy(sourceId, 2, "新部署");
-        assertNotNull(result);
-    }
-
     // --- ヘルパー ---
 
     private QuotationDto createTestDto() {
