@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.quotationapp.backend.repository.MasterRepository">
+
+<select id="getAllBranches" resultType="com.quotationapp.backend.entity.Branch">
+    SELECT * FROM branches ORDER BY sort_no
+</select>
+
+<select id="getSalesStaffsByBranchId" resultType="com.quotationapp.backend.entity.SalesStaff">
+    SELECT * FROM sales_staffs WHERE branch_id = #{branchId} ORDER BY id
+</select>
+
+<select id="getCustomersBySalesStaffId" resultType="com.quotationapp.backend.entity.Customer">
+    SELECT * FROM customers WHERE sales_staff_id = #{salesStaffId} ORDER BY id
+</select>
+
+</mapper>
